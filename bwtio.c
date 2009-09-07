@@ -55,14 +55,16 @@ bwt_t *bwt_restore_bwt(const char *fn)
 
 	bwt = (bwt_t*)calloc(1, sizeof(bwt_t));
 	fp = xopen(fn, "rb");
-	fseek(fp, 0, SEEK_END);
-	bwt->bwt_size = (ftell(fp) - sizeof(bwtint_t) * 5) >> 2;
-	bwt->bwt = (uint32_t*)calloc(bwt->bwt_size, 4);
-	fseek(fp, 0, SEEK_SET);
-	fread(&bwt->primary, sizeof(bwtint_t), 1, fp);
-	fread(bwt->L2+1, sizeof(bwtint_t), 4, fp);
-	fread(bwt->bwt, 4, bwt->bwt_size, fp);
-	bwt->seq_len = bwt->L2[4];
+	fseek(fp, 0, SEEK_END); //this is to get file length, seeking to the beginning
+	//not completely sure why this does this, 
+	// I'm going ot assume the bwt is padded with 5 bwt_ints and the rest of the data structures are 4 bits each.
+	bwt->bwt_size = (ftell(fp) - sizeof(bwtint_t) * 5) >> 2; 
+	bwt->bwt = (uint32_t*)calloc(bwt->bwt_size, 4); //and then allocating space for the bwt given that size
+	fseek(fp, 0, SEEK_SET); //go back to the beginning
+	fread(&bwt->primary, sizeof(bwtint_t), 1, fp); //read one bwtint into primary
+	fread(bwt->L2+1, sizeof(bwtint_t), 4, fp); //put 4 bwtints into l2[1-5]
+	fread(bwt->bwt, 4, bwt->bwt_size, fp);// read the bwt into bwt->bwt
+	bwt->seq_len = bwt->L2[4];	//set the seq_len . . . what's l2[0]?
 	fclose(fp);
 	bwt_gen_cnt_table(bwt);
 

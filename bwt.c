@@ -36,13 +36,31 @@
 void bwt_gen_cnt_table(bwt_t *bwt)
 {
 	int i, j;
-	for (i = 0; i != 256; ++i) {
+	for (i = 0; i != 256; ++i) { //I'm going to assume that != cheaper than <
 		uint32_t x = 0;
 		for (j = 0; j != 4; ++j)
 			x |= (((i&3) == j) + ((i>>2&3) == j) + ((i>>4&3) == j) + (i>>6 == j)) << (j<<3);
 		bwt->cnt_table[i] = x;
 	}
 }
+	//so x is a 32 bit int. . . and something is done on it 256 times . . . 
+	//x = 0000000000000000000000000000000000000000
+	//i = 0
+	//j = 0
+	//x |= 
+	//(
+	//	(
+	//		(i&3) == j 		#1
+	//	) + 
+	//	(
+	//		(i>>2&3) == j	#1
+	//	) + 
+	//	(
+	//		(i>>4&3) == j	#1
+	//	) + 
+	//	(i>>6 == j)			#1
+	//) << 					#3
+	//(j<<3)}				#0
 
 // bwt->bwt and bwt->occ must be precalculated
 void bwt_cal_sa(bwt_t *bwt, int intv)

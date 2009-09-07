@@ -30,6 +30,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+//contains 
 #define __KS_TYPE(type_t)						\
 	typedef struct __kstream_t {				\
 		char *buf;								\
@@ -39,7 +40,7 @@
 
 #define ks_eof(ks) ((ks)->is_eof && (ks)->begin >= (ks)->end)
 #define ks_rewind(ks) ((ks)->is_eof = (ks)->begin = (ks)->end = 0)
-
+//__bufsize is 4096, defined at the end of this file in KSEQ_INIT.  type_t is 
 #define __KS_BASIC(type_t, __bufsize)								\
 	static inline kstream_t *ks_init(type_t f)						\
 	{																\
@@ -56,13 +57,19 @@
 		}															\
 	}
 
+//ks_getc
+// if it's eof, return -1
+// if begin (where we're in the buffer) >= end (the end of the buffer)
+// read into the buffer again, set begin = 0.  end = how much we've
+// read into the buffer
+// else, read one char from the buffer.
 #define __KS_GETC(__read, __bufsize)						\
 	static inline int ks_getc(kstream_t *ks)				\
 	{														\
 		if (ks->is_eof && ks->begin >= ks->end) return -1;	\
 		if (ks->begin >= ks->end) {							\
 			ks->begin = 0;									\
-			ks->end = __read(ks->f, ks->buf, __bufsize);	\
+			ks->end = __read(ks->f, ks->buf, __bufsize)	;	\
 			if (ks->end < __bufsize) ks->is_eof = 1;		\
 			if (ks->end == 0) return -1;					\
 		}													\
@@ -77,16 +84,17 @@ typedef struct __kstring_t {
 } kstring_t;
 #endif
 
+//kroundup32 rounds x upto nearest 2^n.  000011 => 000100, 001001 => 010000 etc.  (5 => 8.  46 => 64.  515 => 1024)
 #ifndef kroundup32
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
 #endif
-
+//ks_getuntil.  delim = 0 means delim is whitespace).
 #define __KS_GETUNTIL(__read, __bufsize)								\
 	static int ks_getuntil(kstream_t *ks, int delimiter, kstring_t *str, int *dret) \
 	{																	\
 		if (dret) *dret = 0;											\
 		str->l = 0;														\
-		if (ks->begin >= ks->end && ks->is_eof) return -1;				\
+		if (ks->begin >= ks->end && ks->is_eof) return -1;	/*end of file*/			\
 		for (;;) {														\
 			int i;														\
 			if (ks->begin >= ks->end) {									\
@@ -126,7 +134,9 @@ typedef struct __kstring_t {
 	__KS_BASIC(type_t, __bufsize)				\
 	__KS_GETC(__read, __bufsize)				\
 	__KS_GETUNTIL(__read, __bufsize)
-
+	
+//inline is a GCC trick to sub in the function wherever it's called.  makes the function effectively a macro.
+//type_t is gzFile
 #define __KSEQ_BASIC(type_t)											\
 	static inline kseq_t *kseq_init(type_t fd)							\
 	{																	\
@@ -160,7 +170,7 @@ typedef struct __kstring_t {
 		if (seq->last_char == 0) { /* then jump to the next header line */ \
 			while ((c = ks_getc(ks)) != -1 && c != '>' && c != '@');	\
 			if (c == -1) return -1; /* end of file */					\
-			seq->last_char = c;											\
+			seq->last_char = c;	/* set last_char to first char in seq */										\
 		} /* the first header char has been read */						\
 		seq->comment.l = seq->seq.l = seq->qual.l = 0;					\
 		if (ks_getuntil(ks, 0, &seq->name, &c) < 0) return -1;			\
@@ -198,7 +208,7 @@ typedef struct __kstring_t {
 		int last_char;							\
 		kstream_t *f;							\
 	} kseq_t;
-
+//(type_t = gzfile, __read = gzread)
 #define KSEQ_INIT(type_t, __read)				\
 	KSTREAM_INIT(type_t, __read, 4096)			\
 	__KSEQ_TYPE(type_t)							\

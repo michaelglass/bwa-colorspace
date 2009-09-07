@@ -1,3 +1,4 @@
+//goto line 108!!!  bwt_aln1_t *bwt_match_gap!!
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,8 +9,11 @@
 #define STATE_I 1
 #define STATE_D 2
 
+//m = max diff, max openings, max extensions, options.  p->s_mm = mismatch penalty.  p->s_gapo gap open penalty.  s_gape gap extension penalty
+//score = diffs * penalty + open * penalty + extension * penalty.  easy peasy. 
 #define aln_score(m,o,e,p) ((m)*(p)->s_mm + (o)*(p)->s_gapo + (e)*(p)->s_gape)
 
+//max_diff, max gap openining, max gap extensions, options
 gap_stack_t *gap_init_stack(int max_mm, int max_gapo, int max_gape, const gap_opt_t *opt)
 {
 	int i;
@@ -33,6 +37,7 @@ void gap_destroy_stack(gap_stack_t *stack)
 	free(stack);
 }
 
+//resets stack contents to uninitiated so we can reuse the same memory space
 static void gap_reset_stack(gap_stack_t *stack)
 {
 	int i;
@@ -101,6 +106,7 @@ static inline int int_log2(uint32_t v)
 	return c;
 }
 
+//meat of aln algorithm is HERE
 bwt_aln1_t *bwt_match_gap(bwt_t *const bwts[2], int len, const ubyte_t *seq[2], bwt_width_t *w[2],
 						  bwt_width_t *seed_w[2], const gap_opt_t *opt, int *_n_aln, gap_stack_t *stack)
 {
@@ -122,12 +128,13 @@ bwt_aln1_t *bwt_match_gap(bwt_t *const bwts[2], int len, const ubyte_t *seq[2], 
 	}
 
 	//for (j = 0; j != len; ++j) printf("#0 %d: [%d,%u]\t[%d,%u]\n", j, w[0][j].bid, w[0][j].w, w[1][j].bid, w[1][j].w);
-	gap_reset_stack(stack); // reset stack
+	gap_reset_stack(stack);
+	
 	gap_push(stack, 0, len, 0, bwts[0]->seq_len, 0, 0, 0, 0, 0, opt);
 	gap_push(stack, 1, len, 0, bwts[0]->seq_len, 0, 0, 0, 0, 0, opt);
 
 	while (stack->n_entries) {
-		gap_entry_t e;
+		gap_entry_t e; /*** e is the current gap entry!! ***/
 		int a, i, m, m_seed = 0, hit_found, allow_diff, allow_M, tmp;
 		bwtint_t k, l, cnt_k[4], cnt_l[4], occ;
 		const bwt_t *bwt;
@@ -139,12 +146,12 @@ bwt_aln1_t *bwt_match_gap(bwt_t *const bwts[2], int len, const ubyte_t *seq[2], 
 		if (stack->n_entries > opt->max_entries) break;
 		gap_pop(stack, &e); // get the best entry
 		k = e.k; l = e.l; // SA interval
-		a = e.info>>20&1; i = e.info&0xffff; // strand, length
+		a = e.info>>20&1; i = e.info&0xffff; // strand, length  e.info>>20&1 = 
 		if (!(opt->mode & BWA_MODE_NONSTOP) && e.info>>21 > best_score + opt->s_mm) break; // no need to proceed
 
-		m = max_diff - (e.n_mm + e.n_gapo);
-		if (opt->mode & BWA_MODE_GAPE) m -= e.n_gape;
-		if (m < 0) continue;
+		m = max_diff - (e.n_mm + e.n_gapo); //# of misses + gap openings
+		if (opt->mode & BWA_MODE_GAPE) m -= e.n_gape; //+gap extension.  doesn't count gap extensions if you set a preference.
+		if (m < 0) continue;  //if max_diff is over, go to the next sequence
 		bwt = bwts[1-a]; str = seq[a]; width = w[a];
 		if (seed_w) { // apply seeding
 			seed_width = seed_w[a];
@@ -157,7 +164,7 @@ bwt_aln1_t *bwt_match_gap(bwt_t *const bwts[2], int len, const ubyte_t *seq[2], 
 		// check whether a hit is found
 		hit_found = 0;
 		if (i == 0) hit_found = 1;
-		else if (m == 0 && (e.state == STATE_M || (opt->mode&BWA_MODE_GAPE) || e.n_gape == opt->max_gape)) { // no diff allowed
+		else if (m == 0 && (e.state == STATE_M || (opt->mode&BWA_MODE_GAPE) || e.n_gape == opt->max_gape)) { 
 			if (bwt_match_exact_alt(bwt, i, str, &k, &l)) hit_found = 1;
 			else continue; // no hit, skip
 		}
@@ -200,9 +207,10 @@ bwt_aln1_t *bwt_match_gap(bwt_t *const bwts[2], int len, const ubyte_t *seq[2], 
 		--i;
 		bwt_2occ4(bwt, k - 1, l, cnt_k, cnt_l); // retrieve Occ values
 		occ = l - k + 1;
+		
 		// test whether diff is allowed
 		allow_diff = allow_M = 1;
-		if (i > 0) {
+		if (i > 0) { //if we still have any sequence left. . . 
 			int ii = i - (len - opt->seed_len);
 			if (width[i-1].bid > m-1) allow_diff = 0;
 			else if (width[i-1].bid == m-1 && width[i].bid == m-1 && width[i-1].w == width[i].w) allow_M = 0;

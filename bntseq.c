@@ -152,19 +152,25 @@ void bns_destroy(bntseq_t *bns)
 	}
 }
 
-void bns_fasta2bntseq(gzFile fp_fa, const char *prefix)
+// this converts fasta to pac file.  prefix is filename.nt, fp_fa is fasta source
+void bns_fasta2bntseq(gzFile fp_fa, const char *prefix) 
 {
 	kseq_t *seq;
-	char name[1024];
+	//kseq_t is
+	// 4 kstring_t's (2 size_ts and a string (char*))
+	// 1 int 
+	// 1 *kstreamt (char*; int begin,end,is_eof; gzFile f)
+	char name[1024]; //why not do strlen like everywhere else?
 	bntseq_t *bns;
 	bntamb1_t *q;
 	int l_buf;
-	unsigned char buf[0x10000];
+	unsigned char buf[0x10000]; //2^16
 	int32_t m_seqs, m_holes, l, i;
 	FILE *fp;
 
 	// initialization
 	seq = kseq_init(fp_fa);
+	//creates a kseq_t, puts fp_fa in seq->f->f, sets seq->f->buf to be a 4096-long char*
 	bns = (bntseq_t*)calloc(1, sizeof(bntseq_t));
 	bns->seed = 11; // fixed seed for random generator
 	srand48(bns->seed);
@@ -175,7 +181,7 @@ void bns_fasta2bntseq(gzFile fp_fa, const char *prefix)
 	l_buf = 0;
 	strcpy(name, prefix); strcat(name, ".pac");
 	fp = xopen(name, "wb");
-	memset(buf, 0, 0x10000);
+	memset(buf, 0, 0x10000); //zeroes out buf.  could have just used calloc?
 	// read sequences
 	while ((l = kseq_read(seq)) >= 0) {
 		bntann1_t *p;

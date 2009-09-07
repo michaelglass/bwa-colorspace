@@ -35,6 +35,7 @@
 FILE *err_xopen_core(const char *func, const char *fn, const char *mode)
 {
 	FILE *fp = 0;
+	//if filename is -, check mode and return stdin for r and stdout otherwise
 	if (strcmp(fn, "-") == 0)
 		return (strstr(mode, "r"))? stdin : stdout;
 	if ((fp = fopen(fn, mode)) == 0) {
@@ -43,13 +44,15 @@ FILE *err_xopen_core(const char *func, const char *fn, const char *mode)
 	}
 	return fp;
 }
+
+
 gzFile err_xzopen_core(const char *func, const char *fn, const char *mode)
 {
 	gzFile fp;
 	if (strcmp(fn, "-") == 0)
-		return gzdopen(fileno((strstr(mode, "r"))? stdin : stdout), mode);
+		return gzdopen(fileno((strstr(mode, "r"))? stdin : stdout), mode);  //if this is a stream
 	if ((fp = gzopen(fn, mode)) == 0) {
-		fprintf(stderr, "[%s] fail to open file '%s'. Abort!\n", func, fn);
+		fprintf(stderr, "[%s] fail to open file '%s'. Abort!\n", func, fn); //if this is a file.  gzopen handles uncompressed files
 		abort();
 	}
 	return fp;

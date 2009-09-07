@@ -1,0 +1,12 @@
+what's happening in this program. . .
+
+1)
+bntseq.c
+#156 void bns_fasta2bntseq(gzFile fp_fa, const char *prefix) 
+Takes a fasta database file (fp_fa) and converts it to a .pac (packed) binary with the filename prefix.
+
+this code has lots of types defined at compile time.  for instance, various macros set types and variables in methods.
+kseq.h defines various macros and inline functions.  type_t is gzFile, __read is gzread, buffer is 4096.  
+
+WHAT IS A PAC FILE?
+HOW DO I READ IT?

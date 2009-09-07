@@ -1,3 +1,4 @@
+//GO TO LINE 79! static void bwa_cal_sa_reg_gap!!!
 #include <stdio.h>
 #include <unistd.h>
 #include <math.h>
@@ -26,6 +27,7 @@ gap_opt_t *gap_init_opt()
 	o->indel_end_skip = 5; o->max_del_occ = 10; o->max_entries = 2000000;
 	o->mode = BWA_MODE_GAPE | BWA_MODE_COMPREAD;
 	o->seed_len = 0x7fffffff; o->max_seed_diff = 2;
+	o->max_nucle = -1;
 	o->fnr = 0.04;
 	o->n_threads = 1;
 	o->max_top2 = 30;
@@ -73,6 +75,12 @@ static int bwt_cal_width(const bwt_t *rbwt, int len, const ubyte_t *str, bwt_wid
 	return bid;
 }
 
+//this is where the meat of the work is done.  goes through n_seqs from seqs
+//tid == multithreaded. ignore.
+//bwt[2] = bwt and bwt`
+//n_seqs = # sequences in this segment
+//seqs = sequence data
+//opt = options
 static void bwa_cal_sa_reg_gap(int tid, bwt_t *const bwt[2], int n_seqs, bwa_seq_t *seqs, const gap_opt_t *opt)
 {
 	int i, max_l = 0, max_len;
@@ -84,31 +92,38 @@ static void bwa_cal_sa_reg_gap(int tid, bwt_t *const bwt[2], int n_seqs, bwa_seq
 	// initiate priority stack
 	for (i = max_len = 0; i != n_seqs; ++i)
 		if (seqs[i].len > max_len) max_len = seqs[i].len;
-	if (opt->fnr > 0.0) local_opt.max_diff = bwa_cal_maxdiff(max_len, BWA_AVG_ERR, opt->fnr);
-	if (local_opt.max_diff < local_opt.max_gapo) local_opt.max_gapo = local_opt.max_diff;
-	stack = gap_init_stack(opt->max_diff, local_opt.max_gapo, local_opt.max_gape, &local_opt);
-
+	if (opt->fnr > 0.0) local_opt.max_diff = bwa_cal_maxdiff(max_len, BWA_AVG_ERR, opt->fnr); //if max_diff isn't specified, create it from fnr
+	if (local_opt.max_diff < local_opt.max_gapo) local_opt.max_gapo = local_opt.max_diff; //gapo has to be at least max_diff
+	stack = gap_init_stack(opt->max_diff, local_opt.max_gapo, local_opt.max_gape, &local_opt); //might need to add max_nucleotide here
+	
 	seed_w[0] = (bwt_width_t*)calloc(opt->seed_len+1, sizeof(bwt_width_t));
 	seed_w[1] = (bwt_width_t*)calloc(opt->seed_len+1, sizeof(bwt_width_t));
 	w[0] = w[1] = 0;
+
 	for (i = 0; i != n_seqs; ++i) {
 		bwa_seq_t *p = seqs + i;
-#ifdef HAVE_PTHREAD
-		if (opt->n_threads > 1) {
-			pthread_mutex_lock(&g_seq_lock);
-			if (p->tid < 0) { // unassigned
-				int j;
-				for (j = i; j < n_seqs && j < i + THREAD_BLOCK_SIZE; ++j)
-					seqs[j].tid = tid;
-			} else if (p->tid != tid) {
-				pthread_mutex_unlock(&g_seq_lock);
-				continue;
-			}
-			pthread_mutex_unlock(&g_seq_lock);
-		}
-#endif
+//we're not worrying about threaded right now
+// #ifdef HAVE_PTHREAD
+// 		if (opt->n_threads > 1) {
+// 			pthread_mutex_lock(&g_seq_lock);
+// 			if (p->tid < 0) { // unassigned
+// 				int j;
+// 				for (j = i; j < n_seqs && j < i + THREAD_BLOCK_SIZE; ++j)
+// 					seqs[j].tid = tid;
+// 			} else if (p->tid != tid) {
+// 				pthread_mutex_unlock(&g_seq_lock);
+// 				continue;
+// 			}
+// 			pthread_mutex_unlock(&g_seq_lock);
+// 		}
+// #endif
+		//p = current sequence
+		//..initializing vars in p
+		//seq[0] is sequence.  seq[1] = sequence`
+		
 		p->sa = 0; p->type = BWA_TYPE_NO_MATCH; p->c1 = p->c2 = 0; p->n_aln = 0; p->aln = 0;
 		seq[0] = p->seq; seq[1] = p->rseq;
+		
 		if (max_l < p->len) {
 			max_l = p->len;
 			w[0] = (bwt_width_t*)calloc(max_l + 1, sizeof(bwt_width_t));
@@ -116,7 +131,7 @@ static void bwa_cal_sa_reg_gap(int tid, bwt_t *const bwt[2], int n_seqs, bwa_seq
 		}
 		bwt_cal_width(bwt[0], p->len, seq[0], w[0]);
 		bwt_cal_width(bwt[1], p->len, seq[1], w[1]);
-		if (opt->fnr > 0.0) local_opt.max_diff = bwa_cal_maxdiff(p->len, BWA_AVG_ERR, opt->fnr);
+		if (opt->fnr > 0.0) local_opt.max_diff = bwa_cal_maxdiff(p->len, BWA_AVG_ERR, opt->fnr); //recalculate max_diff if need be?
 		if (opt->seed_len >= p->len) local_opt.seed_len = 0x7fffffff;
 		if (p->len > opt->seed_len) {
 			bwt_cal_width(bwt[0], opt->seed_len, seq[0] + (p->len - opt->seed_len), seed_w[0]);
@@ -150,18 +165,26 @@ static void *worker(void *data)
 }
 #endif
 
+//prefix, in.fq, opt
+//bwa aln database.fasta short_read.fastq > aln_sa.sai 
+//prefix = database.fasta (prefix of all index files)
+//fn_fa = short_read.fastq (actual file)
+
 void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 {
 	int i, n_seqs, tot_seqs = 0;
-	bwa_seq_t *seqs;
+	
+	bwa_seq_t *seqs; 
 	bwa_seqio_t *ks;
 	clock_t t;
 	bwt_t *bwt[2];
 
 	// initialization
-	ks = bwa_seq_open(fn_fa);
+	ks = bwa_seq_open(fn_fa); //ks is a bwa_seqio_t wrapping a kseq_t wrapping a kstream_t wrapping an (uncompressed) gz file loaded from fn_fa's path. AHHH!!!
+	// I assume xzopen can handle uncompressed data?
 
-	{ // load BWT
+	{ 
+		// load BWT into bwt[0], bwt` into bwt[1]
 		char *str = (char*)calloc(strlen(prefix) + 10, 1);
 		strcpy(str, prefix); strcat(str, ".bwt");  bwt[0] = bwt_restore_bwt(str);
 		strcpy(str, prefix); strcat(str, ".rbwt"); bwt[1] = bwt_restore_bwt(str);
@@ -169,16 +192,15 @@ void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 	}
 
 	// core loop
-	fwrite(opt, sizeof(gap_opt_t), 1, stdout);
+	fwrite(opt, sizeof(gap_opt_t), 1, stdout); //write opts to sai file
 	while ((seqs = bwa_read_seq(ks, 0x40000, &n_seqs, opt->mode & BWA_MODE_COMPREAD)) != 0) {
 		tot_seqs += n_seqs;
 		t = clock();
 
 		fprintf(stderr, "[bwa_aln_core] calculate SA coordinate... ");
-
 #ifdef HAVE_PTHREAD
 		if (opt->n_threads <= 1) { // no multi-threading at all
-			bwa_cal_sa_reg_gap(0, bwt, n_seqs, seqs, opt);
+			bwa_cal_sa_reg_gap(0, bwt, n_seqs, seqs, opt); // lets make this work single threaded first: work ingin bwa_cal_sa_reg_gap
 		} else {
 			pthread_t *tid;
 			pthread_attr_t attr;
@@ -213,7 +235,7 @@ void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 
 		bwa_free_read_seq(n_seqs, seqs);
 		fprintf(stderr, "[bwa_aln_core] %d sequences have been processed.\n", tot_seqs);
-	}
+	} //while (more sequences exist) repeat
 
 	// destroy
 	bwt_destroy(bwt[0]); bwt_destroy(bwt[1]);
@@ -232,10 +254,10 @@ int bwa_aln(int argc, char *argv[])
 			if (strstr(optarg, ".")) opt->fnr = atof(optarg), opt->max_diff = -1;
 			else opt->max_diff = atoi(optarg), opt->fnr = -1.0;
 			break;
-		case 'o': opt->max_gapo = atoi(optarg); break;
-		case 'e': opte = atoi(optarg); break;
-		case 'M': opt->s_mm = atoi(optarg); break;
-		case 'O': opt->s_gapo = atoi(optarg); break;
+		case 'o': opt->max_gapo = atoi(optarg); break;// max # gap openings
+		case 'e': opte = atoi(optarg); break;		  // max # of gap extensions (once open . . .)
+		case 'M': opt->s_mm = atoi(optarg); break;    //mismatch penalty
+		case 'O': opt->s_gapo = atoi(optarg); break; 
 		case 'E': opt->s_gape = atoi(optarg); break;
 		case 'd': opt->max_del_occ = atoi(optarg); break;
 		case 'i': opt->indel_end_skip = atoi(optarg); break;
@@ -246,6 +268,7 @@ int bwa_aln(int argc, char *argv[])
 		case 'L': opt->mode |= BWA_MODE_LOGGAP; break;
 		case 'R': opt->max_top2 = atoi(optarg); break;
 		case 'c': opt->mode &= ~BWA_MODE_COMPREAD; break;
+		case 'z': opt->max_nucle = atoi(optarg); break;
 		case 'N': opt->mode |= BWA_MODE_NONSTOP; opt->max_top2 = 0x7fffffff; break;
 		default: return 1;
 		}
@@ -273,11 +296,13 @@ int bwa_aln(int argc, char *argv[])
 		fprintf(stderr, "         -E INT    gap extension penalty [%d]\n", opt->s_gape);
 		fprintf(stderr, "         -R INT    stop searching when there are >INT equally best hits [%d]\n", opt->max_top2);
 		fprintf(stderr, "         -c        input sequences are in the color space\n");
+		fprintf(stderr, "         -z INT    maximum number of nucleotide errors given color space input, -1 for disabled [-1]\n");
 		fprintf(stderr, "         -L        log-scaled gap penalty for long deletions\n");
 		fprintf(stderr, "         -N        non-iterative mode: search for all n-difference hits (slooow)\n");
 		fprintf(stderr, "\n");
 		return 1;
 	}
+	//this is just user output.  doesn't do anything.
 	if (opt->fnr > 0.0) {
 		int i, k;
 		for (i = 17, k = 0; i <= 250; ++i) {
@@ -286,6 +311,10 @@ int bwa_aln(int argc, char *argv[])
 			k = l;
 		}
 	}
+	//prefix, in.fq, opt
+	//bwa aln database.fasta short_read.fastq > aln_sa.sai 
+	//prefix = database.fasta (prefix of all index files)
+	//in.fq = short_read.fastq (actual file)	
 	bwa_aln_core(argv[optind], argv[optind+1], opt);
 	free(opt);
 	return 0;

@@ -15,9 +15,9 @@ bwa_seqio_t *bwa_seq_open(const char *fn)
 {
 	gzFile fp;
 	bwa_seqio_t *bs;
-	bs = (bwa_seqio_t*)calloc(1, sizeof(bwa_seqio_t));
+	bs = (bwa_seqio_t*)calloc(1, sizeof(bwa_seqio_t)); //bwa_seqio_t is just a wrapper around kseq_t.  it has no other members
 	fp = xzopen(fn, "r");
-	bs->ks = kseq_init(fp);
+	bs->ks = kseq_init(fp); //returns kseq_t where kseq_t->f is kstream_t enclosing the gz file fp
 	return bs;
 }
 
@@ -29,6 +29,7 @@ void bwa_seq_close(bwa_seqio_t *bs)
 	free(bs);
 }
 
+// not sure what 'is_comp' means but it is the bool that defines whether or not we're using color-space.  And we are.  is_comp == 0
 void seq_reverse(int len, ubyte_t *seq, int is_comp)
 {
 	int i;

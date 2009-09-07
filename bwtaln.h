@@ -57,6 +57,7 @@ typedef struct {
 } bwa_seq_t;
 
 #define BWA_MODE_GAPE       0x01
+//BWA_MODE_GAPE == disabled long gaps
 #define BWA_MODE_COMPREAD   0x02
 #define BWA_MODE_LOGGAP     0x04
 #define BWA_MODE_NONSTOP    0x10
@@ -65,6 +66,7 @@ typedef struct {
 	int s_mm, s_gapo, s_gape;
 	int mode;
 	int indel_end_skip, max_del_occ, max_entries;
+	int max_nucle;
 	float fnr;
 	int max_diff, max_gapo, max_gape;
 	int max_seed_diff, seed_len;

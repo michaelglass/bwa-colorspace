@@ -70,8 +70,8 @@ int bwa_index(int argc, char *argv[])
 		fprintf(stderr, "         according to the length of the genome.\n\n");
 		return 1;
 	}
-	if (prefix == 0) prefix = strdup(argv[optind]);
-	str  = (char*)calloc(strlen(prefix) + 10, 1);
+	if (prefix == 0) prefix = strdup(argv[optind]); //if no -p, prefix is just the last argument
+	str  = (char*)calloc(strlen(prefix) + 10, 1); 
 	str2 = (char*)calloc(strlen(prefix) + 10, 1);
 	str3 = (char*)calloc(strlen(prefix) + 10, 1);
 
@@ -82,12 +82,12 @@ int bwa_index(int argc, char *argv[])
 		bns_fasta2bntseq(fp, prefix);
 		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 		gzclose(fp);
-	} else { // color indexing
+	} else { // color indexing, which we're doing
 		gzFile fp = xzopen(argv[optind], "r");
-		strcat(strcpy(str, prefix), ".nt");
+		strcat(strcpy(str, prefix), ".nt"); //str = prefix.nt
 		t = clock();
 		fprintf(stderr, "[bwa_index] Pack nucleotide FASTA... ");
-		bns_fasta2bntseq(fp, str);
+		bns_fasta2bntseq(fp, str); //now save bntseq in prefix.nt
 		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 		gzclose(fp);
 		{
@@ -95,7 +95,7 @@ int bwa_index(int argc, char *argv[])
 			tmp_argv[0] = argv[0]; tmp_argv[1] = str; tmp_argv[2] = prefix;
 			t = clock();
 			fprintf(stderr, "[bwa_index] Convert nucleotide PAC to color PAC... ");
-			bwa_pac2cspac(3, tmp_argv);
+			bwa_pac2cspac(3, tmp_argv);  //now save colorspace pac. . .
 			fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 		}
 	}
@@ -104,7 +104,7 @@ int bwa_index(int argc, char *argv[])
 		strcpy(str2, prefix); strcat(str2, ".rpac");
 		t = clock();
 		fprintf(stderr, "[bwa_index] Reverse the packed sequence... ");
-		bwa_pac_rev_core(str, str2);
+		bwa_pac_rev_core(str, str2); // create seq` (.rpac)
 		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 	}
 	{
