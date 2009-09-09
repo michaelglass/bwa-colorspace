@@ -8,5 +8,9 @@ Takes a fasta database file (fp_fa) and converts it to a .pac (packed) binary wi
 this code has lots of types defined at compile time.  for instance, various macros set types and variables in methods.
 kseq.h defines various macros and inline functions.  type_t is gzFile, __read is gzread, buffer is 4096.  
 
+
+kseq.h
+looking through kseq_read up to ks_getuntil at this point.
+
 WHAT IS A PAC FILE?
 HOW DO I READ IT?

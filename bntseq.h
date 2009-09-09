@@ -47,7 +47,7 @@ typedef struct {
 typedef struct {
 	int64_t offset;
 	int32_t len;
-	char amb;
+	char amb; //amb is a single-char hole methinks.
 } bntamb1_t;
 
 typedef struct {

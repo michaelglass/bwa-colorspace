@@ -79,17 +79,20 @@
 #ifndef KSTRING_T
 #define KSTRING_T kstring_t
 typedef struct __kstring_t {
-	size_t l, m;
-	char *s;
+	size_t l, m; //l = length.  m = size (available size)
+	char *s; //actual string
 } kstring_t;
 #endif
 
-//kroundup32 rounds x upto nearest 2^n.  000011 => 000100, 001001 => 010000 etc.  (5 => 8.  46 => 64.  515 => 1024)
+//kroundup32 rounds x upto nearest 2^n.  000011 => 000100, 001001 => 010000 etc.  (5 => 8.  46 => 64.  515 => 1024.)
 #ifndef kroundup32
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
 #endif
 //ks_getuntil.  delim = 0 means delim is whitespace).
 #define __KS_GETUNTIL(__read, __bufsize)								\
+/* read ks until delimieter identified.  delimieter of 0 means look for whitespace.   
+copies all chars upto delimieter into str, returns delimiter into dret if dret passed in 
+returns the length of the str (ie, chars until delimeter)*/ \
 	static int ks_getuntil(kstream_t *ks, int delimiter, kstring_t *str, int *dret) \
 	{																	\
 		if (dret) *dret = 0;											\
@@ -112,20 +115,25 @@ typedef struct __kstring_t {
 				for (i = ks->begin; i < ks->end; ++i)					\
 					if (isspace(ks->buf[i])) break;						\
 			}															\
+	/*allocating space for str->s.  not sure why it needs this much mem*/	\
 			if (str->m - str->l < i - ks->begin + 1) {					\
 				str->m = str->l + (i - ks->begin) + 1;					\
 				kroundup32(str->m);										\
-				str->s = (char*)realloc(str->s, str->m);				\
+				str->s = (char*)realloc(str->s, str->m); 				\
 			}															\
+/* all of this just to copy that stringinto the end of the name var.	
+   memcpy is copying the buffer (from ks_begin to i ) 
+   into the end of str->s (str-> l grows as we run this iteratively) */ \
 			memcpy(str->s + str->l, ks->buf + ks->begin, i - ks->begin); \
 			str->l = str->l + (i - ks->begin);							\
 			ks->begin = i + 1;											\
+/* if i < ks->end, the delimeter was found within the buffer */         \
 			if (i < ks->end) {											\
 				if (dret) *dret = ks->buf[i];							\
 				break;													\
 			}															\
 		}																\
-		str->s[str->l] = '\0';											\
+		str->s[str->l] = '\0'; /*sets the terminator char */	 		\
 		return str->l;													\
 	}
 
@@ -170,24 +178,24 @@ typedef struct __kstring_t {
 		if (seq->last_char == 0) { /* then jump to the next header line */ \
 			while ((c = ks_getc(ks)) != -1 && c != '>' && c != '@');	\
 			if (c == -1) return -1; /* end of file */					\
-			seq->last_char = c;	/* set last_char to first char in seq */										\
+			seq->last_char = c;	/* set last_char to first char in seq */ \
 		} /* the first header char has been read */						\
 		seq->comment.l = seq->seq.l = seq->qual.l = 0;					\
-		if (ks_getuntil(ks, 0, &seq->name, &c) < 0) return -1;			\
-		if (c != '\n') ks_getuntil(ks, '\n', &seq->comment, 0);			\
+		if (ks_getuntil(ks, 0, &seq->name, &c) < 0) return -1; /* don't know when this would return something LESS than 0 */			\
+		if (c != '\n') ks_getuntil(ks, '\n', &seq->comment, 0); /* if the delimeter we got wasn't a  newline, explicitly look for newlines and plug the text into seq's comment */			\
 		while ((c = ks_getc(ks)) != -1 && c != '>' && c != '+' && c != '@') { \
 			if (isgraph(c)) { /* printable non-space character */		\
-				if (seq->seq.l + 1 >= seq->seq.m) { /* double the memory */ \
+				if (seq->seq.l + 1 >= seq->seq.m) { /* double the memory if we are out of space. */ \
 					seq->seq.m = seq->seq.l + 2;						\
-					kroundup32(seq->seq.m); /* rounded to next closest 2^k */ \
+					kroundup32(seq->seq.m); /* here's where it actually doubles seq->m (nearest 2^n-s).  kroundup is a macro hence the lack of references etc.*/ \
 					seq->seq.s = (char*)realloc(seq->seq.s, seq->seq.m); \
 				}														\
-				seq->seq.s[seq->seq.l++] = (char)c;						\
+				seq->seq.s[seq->seq.l++] = (char)c;	/* append char, increment length*/ \
 			}															\
 		}																\
 		if (c == '>' || c == '@') seq->last_char = c; /* the first header char has been read */	\
 		seq->seq.s[seq->seq.l] = 0;	/* null terminated string */		\
-		if (c != '+') return seq->seq.l; /* FASTA */					\
+		if (c != '+') return seq->seq.l; /* FASTA if + not found, we're done.  I think + is for .fq */					\
 		if (seq->qual.m < seq->seq.m) {	/* allocate enough memory */	\
 			seq->qual.m = seq->seq.m;									\
 			seq->qual.s = (char*)realloc(seq->qual.s, seq->qual.m);		\

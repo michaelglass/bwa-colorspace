@@ -37,22 +37,22 @@
 KSEQ_INIT(gzFile, gzread)
 
 unsigned char nst_nt4_table[256] = {
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 5 /*'-'*/, 4, 4,
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  3, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  3, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
+/*0*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+/*16*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+/*32*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 5 /*'-'*/, 4, 4,
+/*48*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*64*/	4, 0 /*'A'*/, 4, 1 /*'C'*/,  4, 4, 4, 2 /*'G'*/,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*80*/	4, 4, 4, 4,  3 /*'T'*/, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*96*/	4, 0 /*'a'*/, 4, 1/*'c'*/,  4, 4, 4, 2/*'g'*/,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*112*/	4, 4, 4, 4,  3/*'t'*/, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*128*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*144*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*160*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*176*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*192*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*208*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*224*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+/*240*/	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4 /*255*/
 };
 
 void bns_dump(const bntseq_t *bns, const char *prefix)
@@ -186,37 +186,38 @@ void bns_fasta2bntseq(gzFile fp_fa, const char *prefix)
 	while ((l = kseq_read(seq)) >= 0) {
 		bntann1_t *p;
 		int lasts;
-		if (bns->n_seqs == m_seqs) {
-			m_seqs <<= 1;
-			bns->anns = (bntann1_t*)realloc(bns->anns, m_seqs * sizeof(bntann1_t));
+		if (bns->n_seqs == m_seqs) { //if we're out of space	
+			m_seqs <<= 1; //double m_seqs
+			bns->anns = (bntann1_t*)realloc(bns->anns, m_seqs * sizeof(bntann1_t)); //double size
 		}
-		p = bns->anns + bns->n_seqs;
+
+		p = bns->anns + bns->n_seqs; //cycling through each of the anns... what's an ann?  dependant on bns's sequences which start unpopulated.  
 		p->name = strdup((char*)seq->name.s);
-		p->anno = seq->comment.s? strdup((char*)seq->comment.s) : strdup("(null)");
-		p->gi = 0; p->len = l;
-		p->offset = (bns->n_seqs == 0)? 0 : (p-1)->offset + (p-1)->len;
+		p->anno = seq->comment.s? strdup((char*)seq->comment.s) : strdup("(null)"); //if we don't have a comment copy in a filler string
+		p->gi = 0; p->len = l;  //l = length of sequence seq
+		p->offset = (bns->n_seqs == 0)? 0 : (p-1)->offset + (p-1)->len; //first time around, bns->n_seqs == 0
 		p->n_ambs = 0;
-		for (i = 0, lasts = 0; i < l; ++i) {
-			int c = nst_nt4_table[(int)seq->seq.s[i]];
-			if (c >= 4) { // N
+		for (i = 0, lasts = 0; i < l; ++i) { //i = index of sequence
+			int c = nst_nt4_table[(int)seq->seq.s[i]]; //translate char to 0-3
+			if (c >= 4) { // N  c >= 4 means it's not A,C,T or G
 				if (lasts == seq->seq.s[i]) { // contiguous N
 					++q->len;
-				} else {
+				} else { //singular hole(hole?)
 					if (bns->n_holes == m_holes) {
-						m_holes <<= 1;
+						m_holes <<= 1; //double memory
 						bns->ambs = (bntamb1_t*)realloc(bns->ambs, m_holes * sizeof(bntamb1_t));
 					}
 					q = bns->ambs + bns->n_holes;
-					q->len = 1;
+					q->len = 1; //when will len be greater than 1 for amb that can only be 1 char??  don't totally understand how this works
 					q->offset = p->offset + i;
 					q->amb = seq->seq.s[i];
 					++p->n_ambs;
 					++bns->n_holes;
 				}
-			}
+			} //N is a hole methinks.  
 			lasts = seq->seq.s[i];
 			{ // fill buffer
-				if (c >= 4) c = lrand48()&0x3;
+				if (c >= 4) c = lrand48()&0x3; //if it's not ACTG, pick a random one
 				if (l_buf == 0x40000) {
 					fwrite(buf, 1, 0x10000, fp);
 					memset(buf, 0, 0x10000);
