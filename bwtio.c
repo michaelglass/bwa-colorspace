@@ -8,9 +8,9 @@ void bwt_dump_bwt(const char *fn, const bwt_t *bwt)
 {
 	FILE *fp;
 	fp = xopen(fn, "wb");
-	fwrite(&bwt->primary, sizeof(bwtint_t), 1, fp);
-	fwrite(bwt->L2+1, sizeof(bwtint_t), 4, fp);
-	fwrite(bwt->bwt, sizeof(bwtint_t), bwt->bwt_size, fp);
+	fwrite(&bwt->primary, sizeof(bwtint_t), 1, fp); //write the primary index into the first int
+	fwrite(bwt->L2+1, sizeof(bwtint_t), 4, fp); //write the cum # of As, ACs, ACGs, and ACGTs into the next four ints
+	fwrite(bwt->bwt, sizeof(bwtint_t), bwt->bwt_size, fp); //dump the bwt-permuted sequence
 	fclose(fp);
 }
 

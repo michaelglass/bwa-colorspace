@@ -63,23 +63,23 @@ void bns_dump(const bntseq_t *bns, const char *prefix)
 	{ // dump .ann
 		strcpy(str, prefix); strcat(str, ".ann");
 		fp = xopen(str, "w");
-		fprintf(fp, "%lld %d %u\n", (long long)bns->l_pac, bns->n_seqs, bns->seed);
+		fprintf(fp, "%lld %d %ux\n", (long long)bns->l_pac, bns->n_seqs, bns->seed); //pac length, # sequences, seed for random generator
 		for (i = 0; i != bns->n_seqs; ++i) {
 			bntann1_t *p = bns->anns + i;
-			fprintf(fp, "%d %s", p->gi, p->name);
-			if (p->anno[0]) fprintf(fp, " %s\n", p->anno);
-			else fprintf(fp, "\n");
-			fprintf(fp, "%lld %d %d\n", (long long)p->offset, p->len, p->n_ambs);
+			fprintf(fp, "%d %s", p->gi, p->name); //p->gi?  I don't think this is ever set to anything besides 0.  so I have no idea what this is.
+			if (p->anno[0]) fprintf(fp, " %s\n", p->anno); //if there's a comment print it
+			else fprintf(fp, "\n"); //else just print a newline
+			fprintf(fp, "%lld %d %d\n", (long long)p->offset, p->len, p->n_ambs); //now print the offset and the lenghth of each string as well as the n_ambs. . . n_ambs = missing codons
 		}
 		fclose(fp);
 	}
 	{ // dump .amb
 		strcpy(str, prefix); strcat(str, ".amb");
 		fp = xopen(str, "w");
-		fprintf(fp, "%lld %d %u\n", (long long)bns->l_pac, bns->n_seqs, bns->n_holes);
+		fprintf(fp, "%lld %d %u\n", (long long)bns->l_pac, bns->n_seqs, bns->n_holes); //length of entire pac, num sequences, number of holes (number of places where ACTG = missing)
 		for (i = 0; i != bns->n_holes; ++i) {
 			bntamb1_t *p = bns->ambs + i;
-			fprintf(fp, "%lld %d %c\n", (long long)p->offset, p->len, p->amb);
+			fprintf(fp, "%lld %d %c\n", (long long)p->offset, p->len, p->amb); //the offset, the length, and the char that was repeatedly wrong (should be a '-')
 		}
 		fclose(fp);
 	}
@@ -118,7 +118,7 @@ bntseq_t *bns_restore(const char *prefix)
 		int64_t l_pac;
 		int32_t n_seqs;
 		strcpy(str, prefix); strcat(str, ".amb");
-		fp = xopen(str, "r");
+		fp = xassert(str, "r");
 		fscanf(fp, "%lld%d%d", &l_pac, &n_seqs, &bns->n_holes);
 		xassert(l_pac == bns->l_pac && n_seqs == bns->n_seqs, "inconsistent .ann and .amb files.");
 		bns->ambs = (bntamb1_t*)calloc(bns->n_holes, sizeof(bntamb1_t));
@@ -164,7 +164,7 @@ void bns_fasta2bntseq(gzFile fp_fa, const char *prefix)
 	bntseq_t *bns;
 	bntamb1_t *q;
 	int l_buf;
-	unsigned char buf[0x10000]; //2^16
+	unsigned char buf[0x10000]; //2^16 //bit buffer
 	int32_t m_seqs, m_holes, l, i;
 	FILE *fp;
 
@@ -218,22 +218,34 @@ void bns_fasta2bntseq(gzFile fp_fa, const char *prefix)
 			lasts = seq->seq.s[i];
 			{ // fill buffer
 				if (c >= 4) c = lrand48()&0x3; //if it's not ACTG, pick a random one
-				if (l_buf == 0x40000) {
-					fwrite(buf, 1, 0x10000, fp);
-					memset(buf, 0, 0x10000);
-					l_buf = 0;
+				if (l_buf == 0x40000) { //buf is only 10000 chars long, but each char contains 4 codons, 
+					fwrite(buf, 1, 0x10000, fp);  //write buf
+					memset(buf, 0, 0x10000); //reset buf. cool!
+					l_buf = 0; //lbuf is the length of buf.
 				}
-				buf[l_buf>>2] |= c << ((3 - (l_buf&3)) << 1);
+				//loads each 2-bit codon into the buffer from left to right.
+				//ACTG =
+				//0132 =
+				//0b00011110
+				//byte = 0
+				//len = 1
+				//load A into byte by setting byte |= a << 6 (bits 76 = 00)
+				//load C into byte by setting byte |= c << 4 (bits 54 = 01)
+				//load T into byte by setting byte |= T << 2 (bits 32 = 11)
+				//load G into byte by setting byte |= G << 0 (bits 10 = 10)
+				
+				buf[l_buf>>2] |= c << ( (3 - (l_buf&3)) << 1 ); 
+				
 				++l_buf;
 			}
 		}
 		++bns->n_seqs;
-		bns->l_pac += seq->seq.l;
+		bns->l_pac += seq->seq.l; //l_pac = total length of all the sequences summed
 	}
-	xassert(bns->l_pac, "zero length sequence.");
+	xassert(bns->l_pac, "zero length sequence."); //if bns->l_pac == 0 quit with message "zero..."
 	{ // finalize .pac file
 		ubyte_t ct;
-		fwrite(buf, 1, (l_buf>>2) + ((l_buf&3) == 0? 0 : 1), fp);
+		fwrite(buf, 1, (l_buf>>2) + ((l_buf&3) == 0? 0 : 1), fp); //write out the rest of the buffer, and 1 more if buf doesn't cleanly contain multiple of 4 code-ons
 		// the following codes make the pac file size always (l_pac/4+1+1)
 		if (bns->l_pac % 4 == 0) {
 			ct = 0;

@@ -29,26 +29,44 @@ void bwa_seq_close(bwa_seqio_t *bs)
 	free(bs);
 }
 
-// not sure what 'is_comp' means but it is the bool that defines whether or not we're using color-space.  And we are.  is_comp == 0
+//is_comp == 0 when using colorpsace like we are
 void seq_reverse(int len, ubyte_t *seq, int is_comp)
 {
 	int i;
-	if (is_comp) {
+	if (is_comp) { //this does not make sense.
+		// a = 0 0b00000000 
+		// c = 1 0b00000001
+		// g = 2 0b00000010
+		// t = 3 0b00000011
+		
+		// a' = t = 0b00000011
+		// c' = g = 0b00000010
+		// g' = c = 0b00000001
+		// t' = a = 0b00000000
+		
+		
 		for (i = 0; i < len>>1; ++i) {
 			char tmp = seq[len-1-i];
-			if (tmp < 4) tmp = 3 - tmp;
+			if (tmp < 4) tmp = 3 - tmp; //don't totally understsand this
+			
 			seq[len-1-i] = (seq[i] >= 4)? seq[i] : 3 - seq[i];
-			seq[i] = tmp;
+			seq[i] = tmp; 
 		}
-		if (len&1) seq[i] = (seq[i] >= 4)? seq[i] : 3 - seq[i];
-	} else {
-		for (i = 0; i < len>>1; ++i) {
-			char tmp = seq[len-1-i];
-			seq[len-1-i] = seq[i]; seq[i] = tmp;
-		}
+		if (len&1) seq[i] = (seq[i] >= 4)? seq[i] : 3 - seq[i]; //swap middle (or not if there is none)
+	} else { //for color reads, we can freely swap bits because pairs match... assuming the sequence isn't packed.
+		for (i = 0; i < len>>1; ++i) {  //iterate through half
+			char tmp = seq[len-1-i];  //save last-i char
+			seq[len-1-i] = seq[i]; seq[i] = tmp; //swap last-i and first+i char.  set first to saved.
+ 		}
 	}
 }
 
+/**
+bwa_seq_t reads fastq seqs out from bs into an array of type bwa_seq_t.
+It will try to read up to n_needed, returning the actual number of seqs in the passed reference 'n'.
+is_comp defines whether or not the seqs are in colorspace or not.  if(is_comp), seq is not in colorspace.
+it's necessary to correctly reverse the order of a colorspace'd sequence.
+*/
 bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int is_comp)
 {
 	bwa_seq_t *seqs, *p;
@@ -64,11 +82,11 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int is_comp)
 		p->len = l;
 		p->seq = (ubyte_t*)calloc(p->len, 1);
 		for (i = 0; i != p->len; ++i)
-			p->seq[i] = nst_nt4_table[(int)seq->seq.s[i]];
+			p->seq[i] = nst_nt4_table[(int)seq->seq.s[i]]; //convert char into [0-5].  don't pack yet
 		p->rseq = (ubyte_t*)calloc(p->len, 1);
-		memcpy(p->rseq, p->seq, p->len);
-		seq_reverse(p->len, p->seq, 0); // *IMPORTANT*: will be reversed back in bwa_refine_gapped()
-		seq_reverse(p->len, p->rseq, is_comp);
+		memcpy(p->rseq, p->seq, p->len); //copy seq into rseq (seq`)
+		seq_reverse(p->len, p->seq, 0); // *IMPORTANT*: will be reversed back in bwa_refine_gapped() 
+		seq_reverse(p->len, p->rseq, is_comp); //is_comp == false for colorspace
 		p->name = strdup((const char*)seq->name.s);
 		{ // trim /[12]$
 			int t = strlen(p->name);

@@ -199,7 +199,7 @@ int is_sa(const ubyte_t *T, int *SA, int n)
  * Constructs the burrows-wheeler transformed string of a given string.
  * @param T[0..n-1] The input string.
  * @param n The length of the given string.
- * @return The primary index if no error occurred, -1 or -2 otherwise.
+ * @return The primary index if no error occurred, -1 or -2 otherwise. (assume primary index == terminator)
  */
 int is_bwt(ubyte_t *T, int n)
 {
@@ -211,6 +211,7 @@ int is_bwt(ubyte_t *T, int n)
 		if (SA[i] == 0) primary = i;
 		else SA[i] = T[SA[i] - 1];
 	}
+	//suffix array = [0,1,2,3,4]
 	for (i = 0; i < primary; ++i) T[i] = SA[i];
 	for (; i < n; ++i) T[i] = SA[i + 1];
 	free(SA);

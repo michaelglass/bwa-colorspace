@@ -10,7 +10,7 @@
 #define STATE_D 2
 
 //m = max diff, max openings, max extensions, options.  p->s_mm = mismatch penalty.  p->s_gapo gap open penalty.  s_gape gap extension penalty
-//score = diffs * penalty + open * penalty + extension * penalty.  easy peasy. 
+//score = #diffs * penalty + #open * penalty + #extension * penalty.  easy peasy. 
 #define aln_score(m,o,e,p) ((m)*(p)->s_mm + (o)*(p)->s_gapo + (e)*(p)->s_gape)
 
 //max_diff, max gap openining, max gap extensions, options
@@ -19,8 +19,9 @@ gap_stack_t *gap_init_stack(int max_mm, int max_gapo, int max_gape, const gap_op
 	int i;
 	gap_stack_t *stack;
 	stack = (gap_stack_t*)calloc(1, sizeof(gap_stack_t));
-	stack->n_stacks = aln_score(max_mm+1, max_gapo+1, max_gape+1, opt);
-	stack->stacks = (gap_stack1_t*)calloc(stack->n_stacks, sizeof(gap_stack1_t));
+	stack->n_stacks = aln_score(max_mm+1, max_gapo+1, max_gape+1, opt); //seems arbitrary...
+	
+	stack->stacks = (gap_stack1_t*)calloc(stack->n_stacks, sizeof(gap_stack1_t)); //add stacks to stack
 	for (i = 0; i != stack->n_stacks; ++i) {
 		gap_stack1_t *p = stack->stacks + i;
 		p->m_entries = 4;

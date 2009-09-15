@@ -31,6 +31,7 @@
 #include <stdint.h>
 
 // requirement: (OCC_INTERVAL%16 == 0)
+// this is the interval that char counts are interspersed in updated BWT buffers
 #define OCC_INTERVAL 0x80
 
 #ifndef BWA_UBYTE
@@ -41,7 +42,7 @@ typedef uint32_t bwtint_t;
 
 typedef struct {
 	bwtint_t primary; // S^{-1}(0), or the primary index of BWT
-	bwtint_t L2[5]; // C(), cumulative count
+	bwtint_t L2[5]; // C(), cumulative count of each char (ie [1] = count of a-s,, [2] = count of c's + a's, [3] = count of as, cs, ts, etc)
 	bwtint_t seq_len; // sequence length
 	bwtint_t bwt_size; // size of bwt, about seq_len/4
 	uint32_t *bwt; // BWT

@@ -170,7 +170,10 @@ returns the length of the str (ie, chars until delimeter)*/ \
    -1   end-of-file
    -2   truncated quality string
  */
-#define __KSEQ_READ														\
+#define __KSEQ_READ									\
+/*  kseq_read reads a single sequence from a seq which contains a stream/file that may contain multiple sequences
+	seq->last_char is set to 
+ */\
 	static int kseq_read(kseq_t *seq)									\
 	{																	\
 		int c;															\
@@ -207,7 +210,7 @@ returns the length of the str (ie, chars until delimeter)*/ \
 		seq->qual.s[seq->qual.l] = 0; /* null terminated string */		\
 		seq->last_char = 0;	/* we have not come to the next header line */ \
 		if (seq->seq.l != seq->qual.l) return -2; /* qual string is shorter than seq string */ \
-		return seq->seq.l;												\
+		return seq->seq.l; /* no more header lines */												\
 	}
 
 #define __KSEQ_TYPE(type_t)						\

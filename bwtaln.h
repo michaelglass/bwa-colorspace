@@ -19,7 +19,7 @@
 #define SAM_FR2 128 // this is read two
 #define SAM_FSC 256 // secondary alignment
 
-#define BWA_AVG_ERR 0.02
+#define BWA_AVG_ERR 0.02 //where does this num come from/?
 
 #ifndef bns_pac
 #define bns_pac(pac, k) ((pac)[(k)>>2] >> ((~(k)&3)<<1) & 3)

@@ -87,12 +87,12 @@ int bwa_index(int argc, char *argv[])
 		strcat(strcpy(str, prefix), ".nt"); //str = prefix.nt
 		t = clock();
 		fprintf(stderr, "[bwa_index] Pack nucleotide FASTA... ");
-		bns_fasta2bntseq(fp, str); //now save bntseq in prefix.nt
+		bns_fasta2bntseq(fp, str); //now save bntseq in prefix.nt.*
 		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 		gzclose(fp);
 		{
 			char *tmp_argv[3];
-			tmp_argv[0] = argv[0]; tmp_argv[1] = str; tmp_argv[2] = prefix;
+			tmp_argv[0] = argv[0]; tmp_argv[1] = str; tmp_argv[2] = prefix; //arg[0] ignored.  argv[1] == working .pac prefix  arg[2] == new cs prefix
 			t = clock();
 			fprintf(stderr, "[bwa_index] Convert nucleotide PAC to color PAC... ");
 			bwa_pac2cspac(3, tmp_argv);  //now save colorspace pac. . .
@@ -104,7 +104,7 @@ int bwa_index(int argc, char *argv[])
 		strcpy(str2, prefix); strcat(str2, ".rpac");
 		t = clock();
 		fprintf(stderr, "[bwa_index] Reverse the packed sequence... ");
-		bwa_pac_rev_core(str, str2); // create seq` (.rpac)
+		bwa_pac_rev_core(str, str2); // create seq` (.rpac).  just reverse the buffer.  nothing fancy.
 		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 	}
 	{

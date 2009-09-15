@@ -37,18 +37,19 @@ typedef uint8_t ubyte_t;
 #endif
 
 typedef struct {
-	int64_t offset;
-	int32_t len;
-	int32_t n_ambs;
-	uint32_t gi;
-	char *name, *anno;
+	int64_t offset; //offset from beginning of pac methinks (slash beginning of buffer in multiseq BWS)
+	int32_t len; //len of this seq
+	int32_t n_ambs; //# missed codons (ie, something that's not ACTG)
+	uint32_t gi; //???? initialized to 0 and never changed
+	char *name, *anno; //name = name of sequence (ie, everything before first whitespace in initial comment)
+	//anno is seq's comment (everything after that whitespace before a newline.)
 } bntann1_t;
 
 typedef struct {
-	int64_t offset;
-	int32_t len;
-	char amb; //amb is a single-char hole methinks.
-} bntamb1_t;
+	int64_t offset; //position of hole relative to beginning
+	int32_t len; //length of contiguous hole containing the same wrong char 
+	char amb; //the repeatedly wrong char
+} bntamb1_t; 
 
 typedef struct {
 	int64_t l_pac;
