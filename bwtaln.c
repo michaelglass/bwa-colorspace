@@ -55,7 +55,7 @@ int bwa_cal_maxdiff(int l, double err, double thres)
 
 // width must be filled as zero
 /**
- not sure what this does yet...
+ need to calculate width to get 
  @param const bwt_t *rbwt the bwt (or reveresed bwt)
  @param int len the sequence length
  @param const ubyte_t *str the sequence (or the reversed sequence)
@@ -88,12 +88,12 @@ static int bwt_cal_width(const bwt_t *rbwt, int len, const ubyte_t *str, bwt_wid
 }
 
 /**
- dont know exactly what this does yet ...
- @param int tid the thread ID.  defaults to 1.  ignored unless set to > 1 and  HAVE_PTHREAD  defined.
- @param bwt_t *const bwt[2] an array of bwt_t's with [0] being the bwt_t and [1] being the reversed bwt_t
- @param int n_seqs the length of the bwa_seq_t array
- @param bwa_seq_t *seqs an array of short reads (probably from a fastq/.fq file)
- @param const gap_opt_t *opt runtime options, probably set by the user
+	This is where all the alignment happens methinks...
+	@param int tid the thread ID.  defaults to 1.  ignored unless set to > 1 and  HAVE_PTHREAD  defined.
+	@param bwt_t *const bwt[2] an array of bwt_t's with [0] being the bwt_t and [1] being the reversed bwt_t
+	@param int n_seqs the length of the bwa_seq_t array
+	@param bwa_seq_t *seqs an array of short reads (probably from a fastq/.fq file)
+	@param const gap_opt_t *opt runtime options, probably set by the user
 */
 static void bwa_cal_sa_reg_gap(int tid, bwt_t *const bwt[2], int n_seqs, bwa_seq_t *seqs, const gap_opt_t *opt)
 {
@@ -118,6 +118,7 @@ static void bwa_cal_sa_reg_gap(int tid, bwt_t *const bwt[2], int n_seqs, bwa_seq
 
 	for (i = 0; i != n_seqs; ++i) {
 		bwa_seq_t *p = seqs + i;
+		//ignoring threaded...
 #ifdef HAVE_PTHREAD
 		if (opt->n_threads > 1) {
 			pthread_mutex_lock(&g_seq_lock);
@@ -132,7 +133,7 @@ static void bwa_cal_sa_reg_gap(int tid, bwt_t *const bwt[2], int n_seqs, bwa_seq
 			pthread_mutex_unlock(&g_seq_lock);
 		}
 #endif
-		//p = current short-read sequence
+		//p is the current short-read sequence
 		
 		p->sa = 0; p->type = BWA_TYPE_NO_MATCH; p->c1 = p->c2 = 0; p->n_aln = 0; p->aln = 0;
 		seq[0] = p->seq; seq[1] = p->rseq;
@@ -230,6 +231,7 @@ void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 			free(data); free(tid);
 		}
 #else
+		//up to here . . .   I think this is where everything happens
 		bwa_cal_sa_reg_gap(0, bwt, n_seqs, seqs, opt);
 #endif
 

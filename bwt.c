@@ -99,8 +99,8 @@ bwtint_t bwt_sa(const bwt_t *bwt, bwtint_t k)
 static inline int __occ_aux(uint64_t y, int c)
 {
 	// reduce nucleotide counting to bits counting
+	
 	y = ((c&2)? y : ~y) >> 1 & ((c&1)? y : ~y) & 0x5555555555555555ull;
-	// count the number of 1s in y
 	y = (y & 0x3333333333333333ull) + (y >> 2 & 0x3333333333333333ull);
 	return ((y + (y >> 4)) & 0xf0f0f0f0f0f0f0full) * 0x101010101010101ull >> 56;
 }
@@ -130,7 +130,16 @@ inline bwtint_t bwt_occ(const bwt_t *bwt, bwtint_t k, ubyte_t c)
 	return n;
 }
 
-// an analogy to bwt_occ() but more efficient, requiring k <= l
+/**
+	an analogy to bwt_occ() but more efficient, requiring k <= l
+	I think this 
+	@param const_bwt_t *bwt
+	@param bwtint_t k
+	@param bwtint l
+	@param ubyte_t c
+	@param bwtint_t *ok
+	@param bwtint_t *ol
+*/
 inline void bwt_2occ(const bwt_t *bwt, bwtint_t k, bwtint_t l, ubyte_t c, bwtint_t *ok, bwtint_t *ol)
 {
 	bwtint_t _k, _l;
@@ -148,11 +157,11 @@ inline void bwt_2occ(const bwt_t *bwt, bwtint_t k, bwtint_t l, ubyte_t c, bwtint
 		uint32_t *p;
 		if (k >= bwt->primary) --k;
 		if (l >= bwt->primary) --l;
-		n = (p = bwt_occ_intv(bwt, k))[c];
-		p += 4;
+		n = (p = bwt_occ_intv(bwt, k))[c]; //n = char count upto k.  p = position of char counts.  
+		p += 4; // p = position after char counts (back in the bwt).
 		// calculate *ok
-		j = k >> 5 << 5;
-		for (i = k/OCC_INTERVAL*OCC_INTERVAL; i < j; i += 32, p += 2)
+		j = k >> 5 << 5; //round down to nearest 32
+		for (i = k/OCC_INTERVAL*OCC_INTERVAL; i < j; i += 32, p += 2) // going through 2 ints at a time. . . 
 			n += __occ_aux((uint64_t)p[0]<<32 | p[1], c);
 		m = n;
 		n += __occ_aux(((uint64_t)p[0]<<32 | p[1]) & ~((1ull<<((~k&31)<<1)) - 1), c);

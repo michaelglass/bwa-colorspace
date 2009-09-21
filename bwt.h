@@ -61,6 +61,10 @@ typedef struct {
  * called bwt_B0 instead of bwt_B */
 #define bwt_B0(b, k) (bwt_bwt(b, k)>>((~(k)&0xf)<<1)&3)
 
+/**
+	not sure why it's *12
+	returns the location of the char counts given bwt_t b and index k (index must already account for OCC jumps)
+*/
 #define bwt_occ_intv(b, k) ((b)->bwt + (k)/OCC_INTERVAL*12)
 
 // inverse Psi function
