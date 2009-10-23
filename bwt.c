@@ -110,7 +110,7 @@ static inline int __occ_aux(uint64_t y, int c)
 	//turns all the nucleotides that are c into a 01
 	y = ((c&2)? y : ~y) >> 1 & ((c&1)? y : ~y) & 0x5555555555555555ull;
 
-	// next line works on pairs of nucleotides
+	// next line works on pairs of nucleotides (count the number of 1s in y)
 	// 0: 0000 				=> 0000 
 	// 1: {0001,0001}	=> 0001
 	// 2: 0101				=> 0010

@@ -205,7 +205,7 @@ void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 
 	// core loop
 	fwrite(opt, sizeof(gap_opt_t), 1, stdout); //write option datastore to sai file
-	while ((seqs = bwa_read_seq(ks, 0x40000, &n_seqs, opt->mode & BWA_MODE_COMPREAD)) != 0) { //try to read 0x40000 seqs into seqs
+	while ((seqs = bwa_read_seq(ks, 0x40000, &n_seqs, opt->mode & BWA_MODE_COMPREAD, opt->trim_qual)) != 0) { //try to read 0x40000 seqs into seqs
 		tot_seqs += n_seqs;
 		t = clock();
 
