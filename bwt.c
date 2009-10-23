@@ -96,15 +96,47 @@ bwtint_t bwt_sa(const bwt_t *bwt, bwtint_t k)
 	return sa + bwt->sa[k/bwt->sa_intv];
 }
 
+/**
+	counts the number of nucleotide c (0-3) in 64 bits by bitcounting
+	@param uint64_t y			64 bits packed code-on
+	@param int c					the character to count
+	@return the number of nucleotide c in y.
+*/
 static inline int __occ_aux(uint64_t y, int c)
 {
 	// reduce nucleotide counting to bits counting
-	
+	//these are the comments just helping me make sense of this
+	//this line turns all of the 2-bit nucleotides that aren't c in y to 00 and 
+	//turns all the nucleotides that are c into a 01
 	y = ((c&2)? y : ~y) >> 1 & ((c&1)? y : ~y) & 0x5555555555555555ull;
+
+	// next line works on pairs of nucleotides
+	// 0: 0000 				=> 0000 
+	// 1: {0001,0001}	=> 0001
+	// 2: 0101				=> 0010
 	y = (y & 0x3333333333333333ull) + (y >> 2 & 0x3333333333333333ull);
-	return ((y + (y >> 4)) & 0xf0f0f0f0f0f0f0full) * 0x101010101010101ull >> 56;
+	
+	// next line works on 4ples of nucleotides
+	// ((y + (y >> 4)) & 0xf0f0f0f0f0f0f0full)
+	// 1: {0001 0000, 0000 0001} 						=> 0000 0001
+	// 2: {0001 0001, 0000 0010, 0010 0000}	=> 0000 0010
+	// 3: {0010 0001, 0001 0010}						=> 0000 0011
+	// 4: 0010 0010 												=> 0000 0100
+	// so this is a 64 bit string.  that's 32 bit nucleotides.  max return val should be 32.
+	// 32 = 0010 0000
+	// 0x101010101010101ull >> 56 puts the sum of all of the 4 pairs in the most significant 4 digits.
+	
+ 	return ((y + (y >> 4)) & 0xf0f0f0f0f0f0f0full) * 0x101010101010101ull >> 56;
 }
 
+/**
+	
+	@param const bwt_t *bwt
+	@param bwtint_t k
+	@param ubyte_t c
+	
+	
+*/
 inline bwtint_t bwt_occ(const bwt_t *bwt, bwtint_t k, ubyte_t c)
 {
 	bwtint_t n, l, j;
@@ -133,12 +165,12 @@ inline bwtint_t bwt_occ(const bwt_t *bwt, bwtint_t k, ubyte_t c)
 /**
 	an analogy to bwt_occ() but more efficient, requiring k <= l
 	I think this 
-	@param const_bwt_t *bwt
-	@param bwtint_t k
-	@param bwtint l
-	@param ubyte_t c
-	@param bwtint_t *ok
-	@param bwtint_t *ol
+	@param const_bwt_t		*bwt the bwt
+	@param bwtint_t k			some kind of index
+	@param bwtint_t l			the length?  something else?
+	@param ubyte_t c			the char to test
+	@param bwtint_t *ok		rval (added to k)
+	@param bwtint_t *ol		2nd rval (added to l)
 */
 inline void bwt_2occ(const bwt_t *bwt, bwtint_t k, bwtint_t l, ubyte_t c, bwtint_t *ok, bwtint_t *ol)
 {
@@ -157,7 +189,7 @@ inline void bwt_2occ(const bwt_t *bwt, bwtint_t k, bwtint_t l, ubyte_t c, bwtint
 		uint32_t *p;
 		if (k >= bwt->primary) --k;
 		if (l >= bwt->primary) --l;
-		n = (p = bwt_occ_intv(bwt, k))[c]; //n = char count upto k.  p = position of char counts.  
+		n = (p = bwt_occ_intv(bwt, k))[c]; //n = char count upto k.  p = position of char counts.
 		p += 4; // p = position after char counts (back in the bwt).
 		// calculate *ok
 		j = k >> 5 << 5; //round down to nearest 32

@@ -62,8 +62,13 @@ typedef struct {
 #define bwt_B0(b, k) (bwt_bwt(b, k)>>((~(k)&0xf)<<1)&3)
 
 /**
-	not sure why it's *12
 	returns the location of the char counts given bwt_t b and index k (index must already account for OCC jumps)
+	... so looking for 4th char count.
+	counts are at 0, 132, 264, 396, 528, 660, 792, 924, 1056, 1188, 1320...
+	test for index 100.  100 / 128 * 12 = 0
+	test for index 200.  200 / 128 * 12 = 12  wtf?
+	test for index 1000.  1000/128*12 = 84. 
+	
 */
 #define bwt_occ_intv(b, k) ((b)->bwt + (k)/OCC_INTERVAL*12)
 

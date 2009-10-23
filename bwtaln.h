@@ -19,7 +19,8 @@
 #define SAM_FR2 128 // this is read two
 #define SAM_FSC 256 // secondary alignment
 
-#define BWA_AVG_ERR 0.02 //where does this num come from/?
+#define BWA_AVG_ERR 0.02
+#define BWA_MIN_RDLEN 35 // for read trimming
 
 #ifndef bns_pac
 #define bns_pac(pac, k) ((pac)[(k)>>2] >> ((~(k)&3)<<1) & 3)
@@ -42,6 +43,7 @@ typedef struct {
 	uint32_t len:20, strand:1, type:2, dummy:1, extra_flag:8;
 	uint32_t n_mm:8, n_gapo:8, n_gape:8, mapQ:8;
 	int score;
+	int clip_len;
 	// alignments in SA coordinates
 	int n_aln;
 	bwt_aln1_t *aln;
@@ -52,7 +54,8 @@ typedef struct {
 	uint16_t *cigar;
 	// for multi-threading only
 	int tid;
-	// MD tag
+	// NM and MD tags
+	uint32_t full_len:20, nm:12;
 	char *md;
 } bwa_seq_t;
 
@@ -66,12 +69,12 @@ typedef struct {
 	int s_mm, s_gapo, s_gape;
 	int mode;
 	int indel_end_skip, max_del_occ, max_entries;
-	int max_nucle;
 	float fnr;
 	int max_diff, max_gapo, max_gape;
 	int max_seed_diff, seed_len;
 	int n_threads;
 	int max_top2;
+	int trim_qual;
 } gap_opt_t;
 
 #define BWA_PET_STD   1
@@ -80,7 +83,7 @@ typedef struct {
 typedef struct {
 	int max_isize;
 	int max_occ;
-	int type, is_sw;
+	int type, is_sw, is_preload;
 } pe_opt_t;
 
 struct __bwa_seqio_t;
@@ -96,7 +99,7 @@ extern "C" {
 	bwa_seqio_t *bwa_seq_open(const char *fn);
 	void bwa_seq_close(bwa_seqio_t *bs);
 	void seq_reverse(int len, ubyte_t *seq, int is_comp);
-	bwa_seq_t *bwa_read_seq(bwa_seqio_t *seq, int n_needed, int *n, int is_comp);
+	bwa_seq_t *bwa_read_seq(bwa_seqio_t *seq, int n_needed, int *n, int is_comp, int trim_qual);
 	void bwa_free_read_seq(int n_seqs, bwa_seq_t *seqs);
 
 	int bwa_cal_maxdiff(int l, double err, double thres);

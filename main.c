@@ -3,7 +3,7 @@
 #include "main.h"
 
 #ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "0.4.9"
+#define PACKAGE_VERSION "0.5.4 (r1245)"
 #endif
 
 static int usage()
@@ -17,6 +17,7 @@ static int usage()
 	fprintf(stderr, "         aln           gapped/ungapped alignment\n");
 	fprintf(stderr, "         samse         generate alignment (single ended)\n");
 	fprintf(stderr, "         sampe         generate alignment (paired ended)\n");
+	fprintf(stderr, "         bwasw         BWA-SW for long queries\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "         fa2pac        convert FASTA to PAC format\n");
 	fprintf(stderr, "         pac2bwt       generate BWT from PAC\n");
@@ -46,6 +47,9 @@ int main(int argc, char *argv[])
 	else if (strcmp(argv[1], "sampe") == 0) return bwa_sai2sam_pe(argc-1, argv+1);
 	else if (strcmp(argv[1], "pac2cspac") == 0) return bwa_pac2cspac(argc-1, argv+1);
 	else if (strcmp(argv[1], "stdsw") == 0) return bwa_stdsw(argc-1, argv+1);
+	else if (strcmp(argv[1], "bwtsw2") == 0) return bwa_bwtsw2(argc-1, argv+1);
+	else if (strcmp(argv[1], "dbwtsw") == 0) return bwa_bwtsw2(argc-1, argv+1);
+	else if (strcmp(argv[1], "bwasw") == 0) return bwa_bwtsw2(argc-1, argv+1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;

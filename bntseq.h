@@ -49,7 +49,7 @@ typedef struct {
 	int64_t offset; //position of hole relative to beginning
 	int32_t len; //length of contiguous hole containing the same wrong char 
 	char amb; //the repeatedly wrong char
-} bntamb1_t; 
+} bntamb1_t;
 
 typedef struct {
 	int64_t l_pac;

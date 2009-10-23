@@ -93,14 +93,14 @@ static void aln_1seq(const seqs_t *ss, const char *name, int l, const char *s, c
 		seq1_t *p = ss->seqs + i;
 		g_aln_param.band_width = l + p->l;
 		aa = aln_stdaln_aux(s, (const char*)p->s, &g_aln_param, g_is_global, g_thres, l, p->l);
-		if (aa->score >= g_thres) {
+		if (aa->score >= g_thres || g_is_global) {
 			printf(">%s\t%d\t%d\t%s\t%c\t%d\t%d\t%d\t%d\t", p->n, aa->start1? aa->start1 : 1, aa->end1, name, strand,
 				   aa->start2? aa->start2 : 1, aa->end2, aa->score, aa->subo);
 			// NB: I put the short sequence as the first sequence in SW, an insertion to
 			// the reference becomes a deletion from the short sequence. Therefore, I use
 			// "MDI" here rather than "MID", and print ->out2 first rather than ->out1.
 			for (i = 0; i != aa->n_cigar; ++i)
-				printf("%d%c", aa->cigar[i]&0x3fff, "MDI"[aa->cigar[i]>>14]);
+				printf("%d%c", aa->cigar32[i]>>4, "MDI"[aa->cigar32[i]&0xf]);
 			printf("\n%s\n%s\n%s\n", aa->out2, aa->outm, aa->out1);
 		}
 		aln_free_AlnAln(aa);

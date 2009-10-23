@@ -1,3 +1,122 @@
+Beta Release 0.5.4 (9 October, 2009)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Since this version, the default seed length used in the "aln" command is
+changed to 32.
+
+Notable changes in bwa-short:
+
+ * Added a new tag "XC:i" which gives the length of clipped reads.
+
+ * In sampe, skip alignments in case of a bug in the Smith-Waterman
+   alignment module.
+
+ * In sampe, fixed a bug in pairing when the read sequence is identical
+   to its reverse complement.
+
+ * In sampe, optionally preload the entire FM-index into memory to
+   reduce disk operations.
+
+Notable changes in dBWT-SW/BWA-SW:
+
+ * Changed name dBWT-SW to BWA-SW.
+
+ * Optionally use "hard clipping" in the SAM output.
+
+(0.5.4: 9 October 2009, r1245)
+
+
+
+Beta Release 0.5.3 (15 September, 2009)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Fixed a critical bug in bwa-short: reads mapped to the reverse strand
+are not complemented.
+
+(0.5.3: 15 September 2009, r1225)
+
+
+
+Beta Release 0.5.2 (13 September, 2009)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Notable changes in bwa-short:
+
+ * Optionally trim reads before alignment. See the manual page on `aln
+   -q' for detailed description.
+
+ * Fixed a bug in calculating the NM tag for a gapped alignment.
+
+ * Fixed a bug given a mixture of reads with some longer than the seed
+   length and some shorter.
+
+ * Print SAM header.
+
+Notable changes in dBWT-SW:
+
+ * Changed the default value of -T to 30. As a result, the accuracy is a
+   little higher for short reads at the cost of speed.
+
+(0.5.2: 13 September 2009, r1223)
+
+
+
+Beta Release 0.5.1 (2 September, 2009)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Notable changes in the short read alignment component:
+
+ * Fixed a bug in samse: do not write mate coordinates.
+
+Notable changes in dBWT-SW:
+
+ * Randomly choose one alignment if the read is a repetitive.
+
+ * Fixed a flaw when a read is mapped across two adjacent reference
+   sequences. However, wrong alignment reports may still occur rarely in
+   this case.
+
+ * Changed the default band width to 50. The speed is slower due to this
+   change.
+
+ * Improved the mapping quality a little given long query sequences.
+
+(0.5.1: 2 September 2009, r1209)
+
+
+
+Beta Release 0.5.0 (20 August, 2009)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This release implements a novel algorithm, dBWT-SW, specifically
+designed for long reads. It is 10-50 times faster than SSAHA2, depending
+on the characteristics of the input data, and achieves comparable
+alignment accuracy while allowing chimera detection. In comparison to
+BLAT, dBWT-SW is several times faster and much more accurate especially
+when the error rate is high. Please read the manual page for more
+information.
+
+The dBWT-SW algorithm is kind of developed for future sequencing
+technologies which produce much longer reads with a little higher error
+rate. It is still at its early development stage. Some features are
+missing and it may be buggy although I have evaluated on several
+simulated and real data sets. But following the "release early"
+paradigm, I would like the users to try it first.
+
+Other notable changes in BWA are:
+
+ * Fixed a rare bug in the Smith-Waterman alignment module.
+
+ * Fixed a rare bug about the wrong alignment coordinate when a read is
+   poorly aligned.
+
+ * Fixed a bug in generating the "mate-unmap" SAM tag when both ends in
+   a pair are unmapped.
+
+(0.5.0: 20 August 2009, r1200)
+
+
+
 Beta Release 0.4.9 (19 May, 2009)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

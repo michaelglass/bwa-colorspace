@@ -1,6 +1,6 @@
 /* The MIT License
 
-   Copyright (c) 2003-2006, 2008, by Heng Li <lh3lh3@gmail.com>
+   Copyright (c) 2003-2006, 2008, 2009, by Heng Li <lh3lh3@gmail.com>
 
    Permission is hereby granted, free of charge, to any person obtaining
    a copy of this software and associated documentation files (the
@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include "stdaln.h"
 
 /* char -> 17 (=16+1) nucleotides */
@@ -222,7 +223,7 @@ int aln_sm_blast[] = {
 /* START OF align.c */
 /********************/
 
-AlnParam aln_param_blast   = {  5,  2,  5, aln_sm_blast, 5, 50 };
+AlnParam aln_param_blast   = {  5,  2,  2, aln_sm_blast, 5, 50 };
 AlnParam aln_param_bwa     = { 26,  9,  5, aln_sm_maq, 5, 50 };
 AlnParam aln_param_nt2nt   = {  8,  2,  2, aln_sm_nt, 16, 75 };
 AlnParam aln_param_rd2rd   = {  1, 19, 19, aln_sm_read, 16, 75 };
@@ -231,7 +232,7 @@ AlnParam aln_param_aa2aa   = { 10,  2,  2, aln_sm_blosum62, 22, 50 };
 AlnAln *aln_init_AlnAln()
 {
 	AlnAln *aa;
-	aa = (AlnAln*)MYALLOC(sizeof(AlnAln));
+	aa = (AlnAln*)malloc(sizeof(AlnAln));
 	aa->path = 0;
 	aa->out1 = aa->out2 = aa->outm = 0;
 	aa->path_len = 0;
@@ -239,9 +240,9 @@ AlnAln *aln_init_AlnAln()
 }
 void aln_free_AlnAln(AlnAln *aa)
 {
-	MYFREE(aa->path); MYFREE(aa->cigar);
-	MYFREE(aa->out1); MYFREE(aa->out2); MYFREE(aa->outm);
-	MYFREE(aa);
+	free(aa->path); free(aa->cigar32);
+	free(aa->out1); free(aa->out2); free(aa->outm);
+	free(aa);
 }
 
 /***************************/
@@ -342,7 +343,7 @@ void aln_init_score_array(unsigned char *seq, int len, int row, int *score_matri
  * banded global alignment *
  ***************************/
 int aln_global_core(unsigned char *seq1, int len1, unsigned char *seq2, int len2, const AlnParam *ap,
-		path_t *path, int *path_len)
+					path_t *path, int *path_len)
 {
 	register int i, j;
 	dpcell_t **dpcell, *q;
@@ -381,13 +382,13 @@ int aln_global_core(unsigned char *seq1, int len1, unsigned char *seq2, int len2
 
 	/* allocate memory */
 	end = (b1 + b2 <= len1)? (b1 + b2 + 1) : (len1 + 1);
-	dpcell = (dpcell_t**)MYALLOC(sizeof(dpcell_t*) * (len2 + 1));
+	dpcell = (dpcell_t**)malloc(sizeof(dpcell_t*) * (len2 + 1));
 	for (j = 0; j <= len2; ++j)
-		dpcell[j] = (dpcell_t*)MYALLOC(sizeof(dpcell_t) * end);
+		dpcell[j] = (dpcell_t*)malloc(sizeof(dpcell_t) * end);
 	for (j = b2 + 1; j <= len2; ++j)
 		dpcell[j] -= j - b2;
-	curr = (dpscore_t*)MYALLOC(sizeof(dpscore_t) * (len1 + 1));
-	last = (dpscore_t*)MYALLOC(sizeof(dpscore_t) * (len1 + 1));
+	curr = (dpscore_t*)malloc(sizeof(dpscore_t) * (len1 + 1));
+	last = (dpscore_t*)malloc(sizeof(dpscore_t) * (len1 + 1));
 	
 	/* set first row */
 	SET_INF(*curr); curr->M = 0;
@@ -516,9 +517,9 @@ int aln_global_core(unsigned char *seq1, int len1, unsigned char *seq2, int len2
 	for (j = b2 + 1; j <= len2; ++j)
 		dpcell[j] += j - b2;
 	for (j = 0; j <= len2; ++j)
-		MYFREE(dpcell[j]);
-	MYFREE(dpcell);
-	MYFREE(curr); MYFREE(last);
+		free(dpcell[j]);
+	free(dpcell);
+	free(curr); free(last);
 	
 	return max;
 }
@@ -555,11 +556,11 @@ int aln_local_core(unsigned char *seq1, int len1, unsigned char *seq2, int len2,
 	if (len1 == 0 || len2 == 0) return -1;
 
 	/* allocate memory */
-	suba = (int*)MYALLOC(sizeof(int) * (len2 + 1));
-	eh = (NT_LOCAL_SCORE*)MYALLOC(sizeof(NT_LOCAL_SCORE) * (len1 + 1));
-	s_array = (int**)MYALLOC(sizeof(int*) * N_MATRIX_ROW);
+	suba = (int*)malloc(sizeof(int) * (len2 + 1));
+	eh = (NT_LOCAL_SCORE*)malloc(sizeof(NT_LOCAL_SCORE) * (len1 + 1));
+	s_array = (int**)malloc(sizeof(int*) * N_MATRIX_ROW);
 	for (i = 0; i != N_MATRIX_ROW; ++i)
-		s_array[i] = (int*)MYALLOC(sizeof(int) * len1);
+		s_array[i] = (int*)malloc(sizeof(int) * len1);
 	/* initialization */
 	aln_init_score_array(seq1, len1, N_MATRIX_ROW, score_matrix, s_array);
 	q = gap_open;
@@ -607,7 +608,7 @@ int aln_local_core(unsigned char *seq1, int len1, unsigned char *seq2, int len2,
 			/* prepare for calculate current h */
 			curr_h = (*s >> NT_LOCAL_SHIFT) + score_array[i];
 			if (curr_h < 0) curr_h = 0;
-			if (last_h > qr) { /* initialize f */
+			if (last_h > 0) { /* initialize f */
 				f = (f > last_h - q)? f - r : last_h - qr;
 				if (curr_h < f) curr_h = f;
 			}
@@ -668,16 +669,15 @@ int aln_local_core(unsigned char *seq1, int len1, unsigned char *seq2, int len2,
 			/* prepare for calculate current h */
 			curr_h = (*s >> NT_LOCAL_SHIFT) + score_array[i];
 			if (curr_h < 0) curr_h = 0;
-			if (last_h > qr) { /* initialize f */
+			if (last_h > 0) { /* initialize f */
 				f = (f > last_h - q)? f - r : last_h - qr;
 				if (curr_h < f) curr_h = f;
 			}
-			if (*(s-1) >= qr_shift) { /* initialize e */
-				curr_last_h = *(s-1) >> NT_LOCAL_SHIFT;
-				e = ((*s & NT_LOCAL_MASK) > curr_last_h - q)? (*s & NT_LOCAL_MASK) - r : curr_last_h - qr;
-				if (curr_h < e) curr_h = e;
-				*s = (last_h << NT_LOCAL_SHIFT) | e;
-			} else *s = last_h << NT_LOCAL_SHIFT; /* e = 0 */
+			curr_last_h = *(s-1) >> NT_LOCAL_SHIFT;
+			e = ((*s & NT_LOCAL_MASK) > curr_last_h - q)? (*s & NT_LOCAL_MASK) - r : curr_last_h - qr;
+			if (e < 0) e = 0;
+			if (curr_h < e) curr_h = e;
+			*s = (last_h << NT_LOCAL_SHIFT) | e;
 			last_h = curr_h;
 			if (score_r < curr_h) {
 				score_r = curr_h; start_i = i; start_j = j;
@@ -733,9 +733,10 @@ int aln_local_core(unsigned char *seq1, int len1, unsigned char *seq2, int len2,
 			if (score_g == score_r || score_f == score_g) break;
 			if (i > j) break;
 		}
-		if (score_r > score_g && score_f > score_g)
-			fprintf(stderr, "[aln_local_core] Cannot find reasonable band width. Continue anyway.\n");
-		score_f = score_g;
+		if (score_r > score_g && score_f > score_g) {
+			fprintf(stderr, "[aln_local_core] Potential bug: (%d,%d) > %d\n", score_f, score_r, score_g);
+			score_f = score_r = -1;
+		} else score_f = score_g;
 
 		/* convert coordinate */
 		for (p = path + *path_len - 1; p >= path; --p) {
@@ -750,16 +751,16 @@ int aln_local_core(unsigned char *seq1, int len1, unsigned char *seq2, int len2,
 
 end_func:
 	/* free */
-	MYFREE(eh); MYFREE(suba);
+	free(eh); free(suba);
 	for (i = 0; i != N_MATRIX_ROW; ++i) {
 		++s_array[i];
-		MYFREE(s_array[i]);
+		free(s_array[i]);
 	}
-	MYFREE(s_array);
+	free(s_array);
 	return score_f;
 }
 AlnAln *aln_stdaln_aux(const char *seq1, const char *seq2, const AlnParam *ap,
-					   int is_global, int thres, int len1, int len2)
+					   int type, int thres, int len1, int len2)
 {
 	unsigned char *seq11, *seq22;
 	int score;
@@ -772,9 +773,9 @@ AlnAln *aln_stdaln_aux(const char *seq1, const char *seq2, const AlnParam *ap,
 	if (len2 < 0) len2 = strlen(seq2);
 
 	aa = aln_init_AlnAln();
-	seq11 = (unsigned char*)MYALLOC(sizeof(unsigned char) * len1);
-	seq22 = (unsigned char*)MYALLOC(sizeof(unsigned char) * len2);
-	aa->path = (path_t*)MYALLOC(sizeof(path_t) * (len1 + len2 + 1));
+	seq11 = (unsigned char*)malloc(sizeof(unsigned char) * len1);
+	seq22 = (unsigned char*)malloc(sizeof(unsigned char) * len2);
+	aa->path = (path_t*)malloc(sizeof(path_t) * (len1 + len2 + 1));
 
 	if (ap->row < 10) { /* 4-nucleotide alignment */
 		for (i = 0; i < len1; ++i)
@@ -793,14 +794,20 @@ AlnAln *aln_stdaln_aux(const char *seq1, const char *seq2, const AlnParam *ap,
 			seq22[j] = aln_aa_table[(int)seq2[j]];
 	}
 	
-	if (is_global) score = aln_global_core(seq11, len1, seq22, len2, ap, aa->path, &aa->path_len);
-	else score = aln_local_core(seq11, len1, seq22, len2, ap, aa->path, &aa->path_len, thres, &aa->subo);
+	if (type == ALN_TYPE_GLOBAL) score = aln_global_core(seq11, len1, seq22, len2, ap, aa->path, &aa->path_len);
+	else if (type == ALN_TYPE_LOCAL) score = aln_local_core(seq11, len1, seq22, len2, ap, aa->path, &aa->path_len, thres, &aa->subo);
+	else if (type == ALN_TYPE_EXTEND)  score = aln_extend_core(seq11, len1, seq22, len2, ap, aa->path, &aa->path_len, 1, 0);
+	else {
+		free(seq11); free(seq22); free(aa->path);
+		aln_free_AlnAln(aa);
+		return 0;
+	}
 	aa->score = score;
 
 	if (thres > 0) {
-		out1 = aa->out1 = (char*)MYALLOC(sizeof(char) * (aa->path_len + 1));
-		out2 = aa->out2 = (char*)MYALLOC(sizeof(char) * (aa->path_len + 1));
-		outm = aa->outm = (char*)MYALLOC(sizeof(char) * (aa->path_len + 1));
+		out1 = aa->out1 = (char*)malloc(sizeof(char) * (aa->path_len + 1));
+		out2 = aa->out2 = (char*)malloc(sizeof(char) * (aa->path_len + 1));
+		outm = aa->outm = (char*)malloc(sizeof(char) * (aa->path_len + 1));
 
 		--seq1; --seq2;
 		--seq11; --seq22;
@@ -820,27 +827,190 @@ AlnAln *aln_stdaln_aux(const char *seq1, const char *seq2, const AlnParam *ap,
 		++seq11; ++seq22;
 	}
 
-	MYFREE(seq11);
-	MYFREE(seq22);
+	free(seq11);
+	free(seq22);
 
 	p = aa->path + aa->path_len - 1;
 	aa->start1 = p->i? p->i : 1;
 	aa->end1 = aa->path->i;
 	aa->start2 = p->j? p->j : 1;
 	aa->end2 = aa->path->j;
-	aa->cigar = aln_path2cigar(aa->path, aa->path_len, &aa->n_cigar);
+	aa->cigar32 = aln_path2cigar32(aa->path, aa->path_len, &aa->n_cigar);
 
 	return aa;
 }
-AlnAln *aln_stdaln(const char *seq1, const char *seq2, const AlnParam *ap, int is_global, int thres)
+AlnAln *aln_stdaln(const char *seq1, const char *seq2, const AlnParam *ap, int type, int thres)
 {
-	return aln_stdaln_aux(seq1, seq2, ap, is_global, thres, -1, -1);
+	return aln_stdaln_aux(seq1, seq2, ap, type, thres, -1, -1);
 }
 
-cigar_t *aln_path2cigar(const path_t *path, int path_len, int *n_cigar)
+/* for backward compatibility */
+uint16_t *aln_path2cigar(const path_t *path, int path_len, int *n_cigar)
+{
+	uint32_t *cigar32;
+	uint16_t *cigar;
+	int i;
+	cigar32 = aln_path2cigar32(path, path_len, n_cigar);
+	cigar = (uint16_t*)cigar32;
+	for (i = 0; i < *n_cigar; ++i)
+		cigar[i] = (cigar32[i]&0xf)<<14 | (cigar32[i]>>4&0x3fff);
+	return cigar;
+}
+
+/* newly added functions (2009-07-21) */
+
+int aln_extend_core(unsigned char *seq1, int len1, unsigned char *seq2, int len2, const AlnParam *ap,
+					path_t *path, int *path_len, int G0, uint8_t *_mem)
+{
+	int q, r, qr, tmp_len;
+	int32_t **s_array, *score_array;
+	int is_overflow, of_base;
+	uint32_t *eh;
+	int i, j, end_i, end_j;
+	int score, start, end;
+	int *score_matrix, N_MATRIX_ROW;
+	uint8_t *mem, *_p;
+
+	/* initialize some align-related parameters. just for compatibility */
+	q = ap->gap_open;
+	r = ap->gap_ext;
+	qr = q + r;
+	score_matrix = ap->matrix;
+	N_MATRIX_ROW = ap->row;
+
+	if (len1 == 0 || len2 == 0) return -1;
+
+	/* allocate memory */
+	mem = _mem? _mem : calloc((len1 + 2) * (N_MATRIX_ROW + 1), 4);
+	_p = mem;
+	eh = (uint32_t*)_p, _p += 4 * (len1 + 2);
+	s_array = calloc(N_MATRIX_ROW, sizeof(void*));
+	for (i = 0; i != N_MATRIX_ROW; ++i)
+		s_array[i] = (int32_t*)_p, _p += 4 * len1;
+	/* initialization */
+	aln_init_score_array(seq1, len1, N_MATRIX_ROW, score_matrix, s_array);
+	tmp_len = len1 + 1;
+	start = 1; end = 2;
+	end_i = end_j = 0;
+	score = 0;
+	is_overflow = of_base = 0;
+	/* convert the coordinate */
+	--seq1; --seq2;
+	for (i = 0; i != N_MATRIX_ROW; ++i) --s_array[i];
+
+	/* dynamic programming */
+	memset(eh, 0, 4 * (len1 + 2));
+	eh[1] = (uint32_t)G0<<16;
+	for (j = 1; j <= len2; ++j) {
+		int _start, _end;
+		int h1 = 0, f = 0;
+		score_array = s_array[seq2[j]];
+		/* set start and end */
+		_start = j - ap->band_width;
+		if (_start < 1) _start = 1;
+		if (_start > start) start = _start;
+		_end = j + ap->band_width;
+		if (_end > len1 + 1) _end = len1 + 1;
+		if (_end < end) end = _end;
+		if (start == end) break;
+		/* adjust eh[] array if overflow occurs. */
+		if (is_overflow) {
+			int tmp, tmp2;
+			score -= LOCAL_OVERFLOW_REDUCE;
+			of_base += LOCAL_OVERFLOW_REDUCE;
+			is_overflow = 0;
+			for (i = start; i <= end; ++i) {
+				uint32_t *s = &eh[i];
+				tmp = *s >> 16; tmp2 = *s & 0xffff;
+				if (tmp2 < LOCAL_OVERFLOW_REDUCE) tmp2 = 0;
+				else tmp2 -= LOCAL_OVERFLOW_REDUCE;
+				if (tmp < LOCAL_OVERFLOW_REDUCE) tmp = 0;
+				else tmp -= LOCAL_OVERFLOW_REDUCE;
+				*s = (tmp << 16) | tmp2;
+			}
+		}
+		_start = _end = 0;
+		/* the inner loop */
+		for (i = start; i < end; ++i) {
+			/* At the beginning of each cycle:
+			     eh[i] -> h[j-1,i-1]<<16 | e[j,i]
+				 f     -> f[j,i]
+				 h1    -> h[j,i-1]
+			*/
+			uint32_t *s = &eh[i];
+			int h = (int)(*s >> 16);
+			int e = *s & 0xffff; /* this is e[j,i] */
+			*s = (uint32_t)h1 << 16; /* eh[i] now stores h[j,i-1]<<16 */
+			h += h? score_array[i] : 0; /* this is left_core() specific */
+			/* calculate h[j,i]; don't need to test 0, as {e,f}>=0 */
+			h = h > e? h : e;
+			h = h > f? h : f; /* h now is h[j,i] */
+			h1 = h;
+			if (h > 0) {
+				if (_start == 0) _start = i;
+				_end = i;
+				if (score < h) {
+					score = h; end_i = i; end_j = j;
+					if (score > LOCAL_OVERFLOW_THRESHOLD) is_overflow = 1;
+				}
+			}
+			/* calculate e[j+1,i] and f[j,i+1] */
+			h -= qr;
+			h = h > 0? h : 0;
+			e -= r;
+			e = e > h? e : h;
+			f -= r;
+			f = f > h? f : h;
+			*s |= e;
+		}			
+		eh[end] = h1 << 16;
+		/* recalculate start and end, the boundaries of the band */
+		if (_end <= 0) break; /* no cell in this row has a positive score */
+		start = _start;
+		end = _end + 3;
+	}
+
+	score += of_base - 1;
+	if (score <= 0) {
+		if (path_len) *path_len = 0;
+		goto end_left_func;
+	}
+
+	if (path == 0) goto end_left_func;
+
+	if (path_len == 0) {
+		path[0].i = end_i; path[0].j = end_j;
+		goto end_left_func;
+	}
+
+	{ /* call global alignment to fill the path */
+		int score_g = 0;
+		j = (end_i - 1 > end_j - 1)? end_i - 1 : end_j - 1;
+		++j; /* j is the maximum band_width */
+		for (i = ap->band_width;; i <<= 1) {
+			AlnParam ap_real = *ap;
+			ap_real.gap_end = -1;
+			ap_real.band_width = i;
+			score_g = aln_global_core(seq1 + 1, end_i, seq2 + 1, end_j, &ap_real, path, path_len);
+			if (score == score_g) break;
+			if (i > j) break;
+		}
+		if (score > score_g)
+			fprintf(stderr, "[aln_left_core] no suitable bandwidth: %d < %d\n", score_g, score);
+		score = score_g;
+	}
+
+end_left_func:
+	/* free */
+	free(s_array);
+	if (!_mem) free(mem);
+	return score;
+}
+
+uint32_t *aln_path2cigar32(const path_t *path, int path_len, int *n_cigar)
 {
 	int i, n;
-	cigar_t *cigar;
+	uint32_t *cigar;
 	unsigned char last_type;
 
 	if (path_len == 0 || path == 0) {
@@ -854,17 +1024,49 @@ cigar_t *aln_path2cigar(const path_t *path, int path_len, int *n_cigar)
 		last_type = path[i].ctype;
 	}
 	*n_cigar = n;
-	cigar = (cigar_t*)MYALLOC(*n_cigar * sizeof(cigar_t));
+	cigar = (uint32_t*)malloc(*n_cigar * 4);
 
-	cigar[0] = (int)path[path_len-1].ctype << 14 | 1;
+	cigar[0] = 1u << 4 | path[path_len-1].ctype;
 	last_type = path[path_len-1].ctype;
 	for (i = path_len - 2, n = 0; i >= 0; --i) {
-		if (path[i].ctype == last_type) ++cigar[n];
+		if (path[i].ctype == last_type) cigar[n] += 1u << 4;
 		else {
-			cigar[++n] = (int)path[i].ctype << 14 | 1;
+			cigar[++n] = 1u << 4 | path[i].ctype;
 			last_type = path[i].ctype;
 		}
 	}
 
 	return cigar;
 }
+
+#ifdef STDALN_MAIN
+int main()
+{
+	AlnAln *aln_local, *aln_global, *aln_left;
+	int i;
+
+	aln_local  = aln_stdaln("CGTGCGATGCactgCATACGGCTCGCCTAGATCA", "AAGGGATGCTCTGCATCgCTCGGCTAGCTGT", &aln_param_blast, 0, 1);
+	aln_global = aln_stdaln("CGTGCGATGCactgCATACGGCTCGCCTAGATCA", "AAGGGATGCTCTGCATCGgCTCGGCTAGCTGT", &aln_param_blast, 1, 1);
+//	aln_left   = aln_stdaln(     "GATGCACTGCATACGGCTCGCCTAGATCA",     "GATGCTCTGCATCGgCTCGGCTAGCTGT", &aln_param_blast, 2, 1);
+	aln_left   = aln_stdaln("CACCTTCGACTCACGTCTCATTCTCGGAGTCGAGTGGACGGTCCCTCATACACGAACAGGTTC",
+							"CACCTTCGACTTTCACCTCTCATTCTCGGACTCGAGTGGACGGTCCCTCATCCAAGAACAGGGTCTGTGAAA", &aln_param_blast, 2, 1);
+
+	printf(">%d,%d\t%d,%d\n", aln_local->start1, aln_local->end1, aln_local->start2, aln_local->end2);
+	printf("%s\n%s\n%s\n", aln_local->out1, aln_local->outm, aln_local->out2);
+
+	printf(">%d,%d\t%d,%d\t", aln_global->start1, aln_global->end1, aln_global->start2, aln_global->end2);
+	for (i = 0; i != aln_global->n_cigar; ++i)
+		printf("%d%c", aln_global->cigar32[i]>>4, "MID"[aln_global->cigar32[i]&0xf]);
+	printf("\n%s\n%s\n%s\n", aln_global->out1, aln_global->outm, aln_global->out2);
+
+	printf(">%d\t%d,%d\t%d,%d\t", aln_left->score, aln_left->start1, aln_left->end1, aln_left->start2, aln_left->end2);
+	for (i = 0; i != aln_left->n_cigar; ++i)
+		printf("%d%c", aln_left->cigar32[i]>>4, "MID"[aln_left->cigar32[i]&0xf]);
+	printf("\n%s\n%s\n%s\n", aln_left->out1, aln_left->outm, aln_left->out2);
+
+	aln_free_AlnAln(aln_local);
+	aln_free_AlnAln(aln_global);
+	aln_free_AlnAln(aln_left);
+	return 0;
+}
+#endif

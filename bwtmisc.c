@@ -70,6 +70,7 @@ bwt_t *bwt_pac2bwt(const char *fn_pac, int use_is)
 	bwt->seq_len = bwa_seq_len(fn_pac);
 	bwt->bwt_size = (bwt->seq_len + 15) >> 4; //divide by 16 because we're using 4-byte slots not 1-byte slots
 	//should be able to store 16 nucl per int instead of 4 per byte
+
 	fp = xopen(fn_pac, "rb");
 
 	// prepare sequence
@@ -79,13 +80,13 @@ bwt_t *bwt_pac2bwt(const char *fn_pac, int use_is)
 	buf2 = (ubyte_t*)calloc(pac_size, 1);
 	fread(buf2, 1, pac_size, fp); //read the pac file into buf2
 	fclose(fp);
-	memset(bwt->L2, 0, 5 * 4); //clear memory in L2
+	memset(bwt->L2, 0, 5 * 4); //clear 20 bytes of memory in L2 (max = 1048576 nucleotides??)
 	buf = (ubyte_t*)calloc(bwt->seq_len + 1, 1);
 	for (i = 0; i < bwt->seq_len; ++i) { //unpack buf into buf.  count all the chars occurence (ie, #C)
-		buf[i] = buf2[i>>2] >> ((3 - (i&3)) << 1) & 3;
+		buf[i] = buf2[i>>2] >> ((3 - (i&3)) << 1) & 3; //this bit manipulation is to pull 2 bits off of the end of the 8 bits in buf2.
 		++bwt->L2[1+buf[i]]; //count the # of each nucleotide / color space.
 	}
-	for (i = 2; i <= 4; ++i) bwt->L2[i] += bwt->L2[i-1];
+	for (i = 2; i <= 4; ++i) bwt->L2[i] += bwt->L2[i-1]; // count for a (in index 1) is just A's, C's = A+Cs, G's = A+C+G, etc.
 	free(buf2); //get rid of packed sequence
 
 	// Burrows-Wheeler Transform
@@ -152,14 +153,16 @@ void bwt_bwtupdate_core(bwt_t *bwt)
 	buf = (uint32_t*)calloc(bwt->bwt_size, 4); // will be the new bwt
 	c[0] = c[1] = c[2] = c[3] = 0;
 	for (i = k = 0; i < bwt->seq_len; ++i) {
-		if (i % OCC_INTERVAL == 0) { //starting at 0, every 80 chars, add the char counts (up to that point) to 4 ints in the bwt.
+		// its [4 char counts][128 nucleotides][4][128][4][128]...
+		// 
+		if (i % OCC_INTERVAL == 0) { //starting at 0, every 128 chars, add the char counts (up to that point) to 4 ints in the bwt.
 			memcpy(buf + k, c, sizeof(bwtint_t) * 4);
 			k += 4;
 		}
-		if (i % 16 == 0) buf[k++] = bwt->bwt[i/16]; //then every 16, add the next 16 nucleotides from bwt to the buffer.
-		++c[bwt_B00(bwt, i)];  //increments the C (not cumulative)
+		if (i % 16 == 0) buf[k++] = bwt->bwt[i/16]; //also every 16, add the next 16 nucleotides from bwt to the buffer.
+		++c[bwt_B00(bwt, i)];  //increments the char count up to this point
 	}
-	// then add the final char counts
+	// the last element
 	memcpy(buf + k, c, sizeof(bwtint_t) * 4);
 	xassert(k + 4 == bwt->bwt_size, "inconsistent bwt_size");
 	// update bwt
@@ -194,7 +197,7 @@ void bwa_pac_rev_core(const char *fn, const char *fn_rev)
 	fread(bufin, 1, pac_len, fp);
 	fclose(fp);
 	for (i = seq_len - 1, j = 0; i >= 0; --i) {
-		int c = bufin[i>>2] >> ((~i&3)<<1) & 3; 
+		int c = bufin[i>>2] >> ((~i&3)<<1) & 3;
 		//i = seq length.  buffer of 8-bit ints is actually
 		//4 times smaller, so need to pull 4 chars from each byte.
 		//c is last char, starting from the least significant 2 bits moving left 2 bits each time
@@ -236,11 +239,11 @@ uint8_t *bwa_pac2cspac_core(const bntseq_t *bns)
 	rewind(bns->fp_pac);
 	c1 = pac[0]>>6; cspac[0] = c1<<6; //initial colorspace = header nucleotide
 	for (i = 1; i < bns->l_pac; ++i) {
-		c2 = pac[i>>2] >> (~i&3)*2 & 3; //pull nucleotide out of .pac.  each byte in pac has 4 except the last which may have 1-4 nucleotides.
-		cspac[i>>2] |= nst_color_space_table[(1<<c1)|(1<<c2)] << (~i&3)*2; //set the cspac according to this one, last one.  fit 4 in each byte.
-		/*
-		a    c    g    t
-		0    1    2    3		
+	c2 = pac[i>>2] >> (~i&3)*2 & 3; //pull nucleotide out of .pac.  each byte in pac has 4 except the last which may have 1-4 nucleotides.
+	cspac[i>>2] |= nst_color_space_table[(1<<c1)|(1<<c2)] << (~i&3)*2; //set the cspac according to this one, last one.  fit 4 in each byte.
+	/*
+	a    c    g    t
+	0    1    2    3		
 	a 0 00-1 01-3 02-5 03-9 
 	c 1      11-2 12-6 13-10
 	g 2           22-4 23-12

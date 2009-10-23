@@ -69,7 +69,7 @@
 		if (ks->is_eof && ks->begin >= ks->end) return -1;	\
 		if (ks->begin >= ks->end) {							\
 			ks->begin = 0;									\
-			ks->end = __read(ks->f, ks->buf, __bufsize)	;	\
+			ks->end = __read(ks->f, ks->buf, __bufsize);	\
 			if (ks->end < __bufsize) ks->is_eof = 1;		\
 			if (ks->end == 0) return -1;					\
 		}													\
@@ -119,7 +119,7 @@ returns the length of the str (ie, chars until delimeter)*/ \
 			if (str->m - str->l < i - ks->begin + 1) {					\
 				str->m = str->l + (i - ks->begin) + 1;					\
 				kroundup32(str->m);										\
-				str->s = (char*)realloc(str->s, str->m); 				\
+				str->s = (char*)realloc(str->s, str->m);				\
 			}															\
 /* all of this just to copy that stringinto the end of the name var.	
    memcpy is copying the buffer (from ks_begin to i ) 
@@ -142,7 +142,7 @@ returns the length of the str (ie, chars until delimeter)*/ \
 	__KS_BASIC(type_t, __bufsize)				\
 	__KS_GETC(__read, __bufsize)				\
 	__KS_GETUNTIL(__read, __bufsize)
-	
+
 //inline is a GCC trick to sub in the function wherever it's called.  makes the function effectively a macro.
 //type_t is gzFile
 #define __KSEQ_BASIC(type_t)											\

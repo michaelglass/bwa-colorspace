@@ -20,6 +20,8 @@ extern "C" {
 
 	int bwa_stdsw(int argc, char *argv[]);
 
+	int bwa_bwtsw2(int argc, char *argv[]);
+
 #ifdef __cplusplus
 }
 #endif

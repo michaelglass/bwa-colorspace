@@ -63,7 +63,7 @@ void bns_dump(const bntseq_t *bns, const char *prefix)
 	{ // dump .ann
 		strcpy(str, prefix); strcat(str, ".ann");
 		fp = xopen(str, "w");
-		fprintf(fp, "%lld %d %ux\n", (long long)bns->l_pac, bns->n_seqs, bns->seed); //pac length, # sequences, seed for random generator
+		fprintf(fp, "%lld %d %u\n", (long long)bns->l_pac, bns->n_seqs, bns->seed); //pac length, # sequences, seed for random generator
 		for (i = 0; i != bns->n_seqs; ++i) {
 			bntann1_t *p = bns->anns + i;
 			fprintf(fp, "%d %s", p->gi, p->name); //p->gi?  I don't think this is ever set to anything besides 0.  so I have no idea what this is.
@@ -90,12 +90,14 @@ bntseq_t *bns_restore(const char *prefix)
 	char str[1024];
 	FILE *fp;
 	bntseq_t *bns;
+	long long xx;
 	int i;
 	bns = (bntseq_t*)calloc(1, sizeof(bntseq_t));
 	{ // read .ann
 		strcpy(str, prefix); strcat(str, ".ann");
 		fp = xopen(str, "r");
-		fscanf(fp, "%lld%d%u", &bns->l_pac, &bns->n_seqs, &bns->seed);
+		fscanf(fp, "%lld%d%u", &xx, &bns->n_seqs, &bns->seed);
+		bns->l_pac = xx;
 		bns->anns = (bntann1_t*)calloc(bns->n_seqs, sizeof(bntann1_t));
 		for (i = 0; i < bns->n_seqs; ++i) {
 			bntann1_t *p = bns->anns + i;
@@ -110,7 +112,8 @@ bntseq_t *bns_restore(const char *prefix)
 			if (q - str > 1) p->anno = strdup(str + 1); // skip leading space
 			else p->anno = strdup("");
 			// read the rest
-			fscanf(fp, "%lld%d%d", &p->offset, &p->len, &p->n_ambs);
+			fscanf(fp, "%lld%d%d", &xx, &p->len, &p->n_ambs);
+			p->offset = xx;
 		}
 		fclose(fp);
 	}
@@ -118,13 +121,15 @@ bntseq_t *bns_restore(const char *prefix)
 		int64_t l_pac;
 		int32_t n_seqs;
 		strcpy(str, prefix); strcat(str, ".amb");
-		fp = xassert(str, "r");
-		fscanf(fp, "%lld%d%d", &l_pac, &n_seqs, &bns->n_holes);
+		fp = xopen(str, "r");
+		fscanf(fp, "%lld%d%d", &xx, &n_seqs, &bns->n_holes);
+		l_pac = xx;
 		xassert(l_pac == bns->l_pac && n_seqs == bns->n_seqs, "inconsistent .ann and .amb files.");
 		bns->ambs = (bntamb1_t*)calloc(bns->n_holes, sizeof(bntamb1_t));
 		for (i = 0; i < bns->n_holes; ++i) {
 			bntamb1_t *p = bns->ambs + i;
-			fscanf(fp, "%lld%d%s", &p->offset, &p->len, str);
+			fscanf(fp, "%lld%d%s", &xx, &p->len, str);
+			p->offset = xx;
 			p->amb = str[0];
 		}
 		fclose(fp);
@@ -153,7 +158,7 @@ void bns_destroy(bntseq_t *bns)
 }
 
 // this converts fasta to pac file.  prefix is filename.nt, fp_fa is fasta source
-void bns_fasta2bntseq(gzFile fp_fa, const char *prefix) 
+void bns_fasta2bntseq(gzFile fp_fa, const char *prefix)
 {
 	kseq_t *seq;
 	//kseq_t is

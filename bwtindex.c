@@ -71,7 +71,7 @@ int bwa_index(int argc, char *argv[])
 		return 1;
 	}
 	if (prefix == 0) prefix = strdup(argv[optind]); //if no -p, prefix is just the last argument
-	str  = (char*)calloc(strlen(prefix) + 10, 1); 
+	str  = (char*)calloc(strlen(prefix) + 10, 1);
 	str2 = (char*)calloc(strlen(prefix) + 10, 1);
 	str3 = (char*)calloc(strlen(prefix) + 10, 1);
 

@@ -25,11 +25,11 @@ gap_opt_t *gap_init_opt()
 	o->max_diff = -1; o->max_gapo = 1; o->max_gape = 6;
 	o->indel_end_skip = 5; o->max_del_occ = 10; o->max_entries = 2000000;
 	o->mode = BWA_MODE_GAPE | BWA_MODE_COMPREAD;
-	o->seed_len = 0x7fffffff; o->max_seed_diff = 2;
-	o->max_nucle = -1;
+	o->seed_len = 32; o->max_seed_diff = 2;
 	o->fnr = 0.04;
 	o->n_threads = 1;
 	o->max_top2 = 30;
+	o->trim_qual = 0;
 	return o;
 }
 
@@ -106,12 +106,12 @@ static void bwa_cal_sa_reg_gap(int tid, bwt_t *const bwt[2], int n_seqs, bwa_seq
 	// initiate priority stack, (specifically, find the max_length for all sequen)
 	for (i = max_len = 0; i != n_seqs; ++i)
 		if (seqs[i].len > max_len) max_len = seqs[i].len;
-	
+
 	//if max diff isn't specified, generate maxdiff from max_len, fnr, and BWA_AVG_ERR
 	if (opt->fnr > 0.0) local_opt.max_diff = bwa_cal_maxdiff(max_len, BWA_AVG_ERR, opt->fnr); //if max_diff isn't specified, create it from fnr
 	if (local_opt.max_diff < local_opt.max_gapo) local_opt.max_gapo = local_opt.max_diff; //gapo has to be less than or equal to max_diff  default is 1
 	stack = gap_init_stack(opt->max_diff, local_opt.max_gapo, local_opt.max_gape, &local_opt); //might need to add max_nucleotide here
-	
+
 	seed_w[0] = (bwt_width_t*)calloc(opt->seed_len+1, sizeof(bwt_width_t));
 	seed_w[1] = (bwt_width_t*)calloc(opt->seed_len+1, sizeof(bwt_width_t));
 	w[0] = w[1] = 0;
@@ -146,7 +146,7 @@ static void bwa_cal_sa_reg_gap(int tid, bwt_t *const bwt[2], int n_seqs, bwa_seq
 		bwt_cal_width(bwt[0], p->len, seq[0], w[0]);
 		bwt_cal_width(bwt[1], p->len, seq[1], w[1]);
 		if (opt->fnr > 0.0) local_opt.max_diff = bwa_cal_maxdiff(p->len, BWA_AVG_ERR, opt->fnr); //recalculate max_diff if need be?
-		if (opt->seed_len >= p->len) local_opt.seed_len = 0x7fffffff;
+		local_opt.seed_len = opt->seed_len < p->len? opt->seed_len : 0x7fffffff;
 		if (p->len > opt->seed_len) {
 			bwt_cal_width(bwt[0], opt->seed_len, seq[0] + (p->len - opt->seed_len), seed_w[0]);
 			bwt_cal_width(bwt[1], opt->seed_len, seq[1] + (p->len - opt->seed_len), seed_w[1]);
@@ -188,7 +188,7 @@ void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 {
 	int i, n_seqs, tot_seqs = 0;
 	
-	bwa_seq_t *seqs; 
+	bwa_seq_t *seqs;
 	bwa_seqio_t *ks;
 	clock_t t;
 	bwt_t *bwt[2];
@@ -227,7 +227,7 @@ void bwa_aln_core(const char *prefix, const char *fn_fa, const gap_opt_t *opt)
 				data[j].n_seqs = n_seqs; data[j].seqs = seqs; data[j].opt = opt;
 				pthread_create(&tid[j], &attr, worker, data + j);
 			}
-			for (j = 0; j < opt->n_threadss; ++j) pthread_join(tid[j], 0);
+			for (j = 0; j < opt->n_threads; ++j) pthread_join(tid[j], 0);
 			free(data); free(tid);
 		}
 #else
@@ -261,7 +261,7 @@ int bwa_aln(int argc, char *argv[])
 	gap_opt_t *opt;
 
 	opt = gap_init_opt();
-	while ((c = getopt(argc, argv, "n:o:e:i:d:l:k:cLR:m:t:NM:O:E:")) >= 0) {
+	while ((c = getopt(argc, argv, "n:o:e:i:d:l:k:cLR:m:t:NM:O:E:q:")) >= 0) {
 		switch (c) {
 		case 'n':
 			if (strstr(optarg, ".")) opt->fnr = atof(optarg), opt->max_diff = -1; //if -n *float*, set fnr
@@ -270,7 +270,7 @@ int bwa_aln(int argc, char *argv[])
 		case 'o': opt->max_gapo = atoi(optarg); break;// max # gap openings
 		case 'e': opte = atoi(optarg); break;		  // max # of gap extensions (once open . . .)
 		case 'M': opt->s_mm = atoi(optarg); break;    //mismatch penalty
-		case 'O': opt->s_gapo = atoi(optarg); break; 
+		case 'O': opt->s_gapo = atoi(optarg); break;
 		case 'E': opt->s_gape = atoi(optarg); break;
 		case 'd': opt->max_del_occ = atoi(optarg); break;
 		case 'i': opt->indel_end_skip = atoi(optarg); break;
@@ -280,8 +280,8 @@ int bwa_aln(int argc, char *argv[])
 		case 't': opt->n_threads = atoi(optarg); break;
 		case 'L': opt->mode |= BWA_MODE_LOGGAP; break;
 		case 'R': opt->max_top2 = atoi(optarg); break;
+		case 'q': opt->trim_qual = atoi(optarg); break;
 		case 'c': opt->mode &= ~BWA_MODE_COMPREAD; break; //turn off compread if colorspace
-		case 'z': opt->max_nucle = atoi(optarg); break;
 		case 'N': opt->mode |= BWA_MODE_NONSTOP; opt->max_top2 = 0x7fffffff; break;
 		default: return 1;
 		}
@@ -308,8 +308,8 @@ int bwa_aln(int argc, char *argv[])
 		fprintf(stderr, "         -O INT    gap open penalty [%d]\n", opt->s_gapo);
 		fprintf(stderr, "         -E INT    gap extension penalty [%d]\n", opt->s_gape);
 		fprintf(stderr, "         -R INT    stop searching when there are >INT equally best hits [%d]\n", opt->max_top2);
+		fprintf(stderr, "         -q INT    quality threshold for read trimming down to %dbp [%d]\n", BWA_MIN_RDLEN, opt->trim_qual);
 		fprintf(stderr, "         -c        input sequences are in the color space\n");
-		fprintf(stderr, "         -z INT    maximum number of nucleotide errors given color space input, -1 for disabled [-1]\n");
 		fprintf(stderr, "         -L        log-scaled gap penalty for long deletions\n");
 		fprintf(stderr, "         -N        non-iterative mode: search for all n-difference hits (slooow)\n");
 		fprintf(stderr, "\n");

@@ -1,4 +1,3 @@
-//goto line 108!!!  bwt_aln1_t *bwt_match_gap!!
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -129,8 +128,7 @@ bwt_aln1_t *bwt_match_gap(bwt_t *const bwts[2], int len, const ubyte_t *seq[2], 
 	}
 
 	//for (j = 0; j != len; ++j) printf("#0 %d: [%d,%u]\t[%d,%u]\n", j, w[0][j].bid, w[0][j].w, w[1][j].bid, w[1][j].w);
-	gap_reset_stack(stack);
-	
+	gap_reset_stack(stack); // reset stack
 	gap_push(stack, 0, len, 0, bwts[0]->seq_len, 0, 0, 0, 0, 0, opt);
 	gap_push(stack, 1, len, 0, bwts[0]->seq_len, 0, 0, 0, 0, 0, opt);
 

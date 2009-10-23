@@ -58,7 +58,7 @@ bwt_t *bwt_restore_bwt(const char *fn)
 	fseek(fp, 0, SEEK_END); //this is to get file length, seeking to the beginning
 	//not completely sure why this does this, 
 	// I'm going ot assume the bwt is padded with 5 bwt_ints and the rest of the data structures are 4 bits each.
-	bwt->bwt_size = (ftell(fp) - sizeof(bwtint_t) * 5) >> 2; 
+	bwt->bwt_size = (ftell(fp) - sizeof(bwtint_t) * 5) >> 2;
 	bwt->bwt = (uint32_t*)calloc(bwt->bwt_size, 4); //and then allocating space for the bwt given that size
 	fseek(fp, 0, SEEK_SET); //go back to the beginning
 	fread(&bwt->primary, sizeof(bwtint_t), 1, fp); //read one bwtint into primary

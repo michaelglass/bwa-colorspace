@@ -1,4 +1,4 @@
-.TH bwa 1 "18 May 2009" "bwa-0.4.8" "Bioinformatics tools"
+.TH bwa 1 "9 October 2009" "bwa-0.5.4" "Bioinformatics tools"
 .SH NAME
 .PP
 bwa - Burrows-Wheeler Alignment Tool
@@ -11,43 +11,37 @@ bwa aln database.fasta short_read.fastq > aln_sa.sai
 bwa samse database.fasta aln_sa.sai short_read.fastq > aln.sam
 .PP
 bwa sampe database.fasta aln_sa1.sai aln_sa2.sai read1.fq read2.fq > aln.sam
+.PP
+bwa dbwtsw database.fasta long_read.fastq > aln.sam
 
 .SH DESCRIPTION
 .PP
-BWA is a fast light-weighted tool that aligns short sequences to a
-sequence database, such as the human reference genome. By default, BWA
-finds an alignment within edit distance 2 to the query sequence, except
-for disallowing gaps close to the end of the query. It can also be tuned
-to find a fraction of longer gaps at the cost of speed and of more false
-alignments.
+BWA is a fast light-weighted tool that aligns relatively short sequences
+(queries) to a sequence database (targe), such as the human reference
+genome. It implements two different algorithms, both based on
+Burrows-Wheeler Transform (BWT). The first algorithm is designed for
+short queries up to ~200bp with low error rate (<3%). It does gapped
+global alignment w.r.t. queries, supports paired-end reads, and is one
+of the fastest short read alignment algorithms to date while also
+visiting suboptimal hits. The second algorithm, BWA-SW, is designed for
+long reads with more errors. It performs heuristic Smith-Waterman-like
+alignment to find high-scoring local hits (and thus chimera). On
+low-error short queries, BWA-SW is slower and less accurate than the
+first algorithm, but on long queries, it is better.
 .PP
-BWA excels in its speed. Mapping 2 million high-quality 35bp short reads
-against the human genome can be done in 20 minutes. Usually the speed is
-gained at the cost of huge memory, disallowing gaps and/or the hard
-limits on the maximum read length and the maximum mismatches. BWA does
-not. It is still relatively light-weighted (2.3GB memory for human
-alignment), performs gapped alignment, and does not set a hard limit on
-read length or maximum mismatches.
-.PP
-Given a database file in FASTA format, BWA first builds BWT index with
-the
+For both algorithms, the database file in the FASTA format must be
+first indexed with the
 .B `index'
-command. The alignments in suffix array (SA) coordinates are then
-generated with the
+command, which typically takes a few hours. The first algorithm is
+implemented via the
 .B `aln'
-command. The resulting file contains ALL the alignments found by
-BWA. The
+command, which finds the suffix array (SA) coordinates of good hits of
+each individual read, and the
 .B `samse/sampe'
-command converts SA coordinates to chromosomal coordinates.  For
-single-end reads, most of computing time is spent on finding the SA
-coordinates (the
-.B aln
-command). For paired-end reads, half of computing time may be spent
-on pairing (the
-.B sampe
-command) given 32bp reads. Using longer reads would reduce the fraction
-of time spent on pairing because each end in a pair would be mapped to
-fewer places.
+command, which converts SA coordinates to chromosomal coordinate and
+pairs reads (for `sampe'). The second algorithm is invoked by the
+.B `dbtwsw'
+command. It works for single-end reads only.
 
 .SH COMMANDS AND OPTIONS
 .TP
@@ -58,7 +52,7 @@ Index database sequences in the FASTA format.
 
 .B OPTIONS:
 .RS
-.TP 8
+.TP 10
 .B -c
 Build color-space index. The input fast should be in nucleotide space.
 .TP
@@ -76,16 +70,10 @@ but does not work with database larger than 2GB. IS is the default
 algorithm due to its simplicity. The current codes for IS algorithm are
 reimplemented by Yuta Mori.
 .TP
-.B div
-Divsufsort library. This library is believed to be the fastest open
-source library for constructing suffix array and BWT. It requires 5N
-working memory. Divsufsort is not compiled by default.
-.TP
 .B bwtsw
-Algorithm implemented in BWT-SW. This is the only method that works with
-the whole human genome. However, this module does not work with database
-smaller than 10MB and it is much slower than the other two. Bwtsw
-algorithm trades speed for memory.
+Algorithm implemented in BWT-SW. This method works with the whole human
+genome, but it does not work with database smaller than 10MB and it is
+usually slower than IS.
 .RE
 .RE
 
@@ -93,7 +81,8 @@ algorithm trades speed for memory.
 .B aln
 bwa aln [-n maxDiff] [-o maxGapO] [-e maxGapE] [-d nDelTail] [-i
 nIndelEnd] [-k maxSeedDiff] [-l seedLen] [-t nThrds] [-cRN] [-M misMsc]
-[-O gapOsc] [-E gapEsc] <in.db.fasta> <in.query.fq> > <out.sai>
+[-O gapOsc] [-E gapEsc] [-q trimQual] <in.db.fasta> <in.query.fq> >
+<out.sai>
 
 Find the SA coordinates of the input reads. Maximum
 .I maxSeedDiff
@@ -105,7 +94,7 @@ differences are allowed in the whole sequence.
 
 .B OPTIONS:
 .RS
-.TP 8
+.TP 10
 .B -n NUM
 Maximum edit distance if the value is INT, or the fraction of missing
 alignments given 2% uniform base error rate if FLOAT. In the latter
@@ -160,6 +149,11 @@ the color space.
 Disable iterative search. All hits with no more than
 .I maxDiff
 differences will be found. This mode is much slower than the default.
+.TP
+.B -q INT
+Parameter for read trimming. BWA trims a read down to
+argmax_x{\\sum_{i=x+1}^l(INT-q_i)} if q_l<INT where l is the original
+read length. [0]
 .RE
 
 .TP
@@ -176,7 +170,7 @@ coordinates and the edit distance.
 
 .B OPTIONS:
 .RS
-.TP 8
+.TP 10
 .B -n INT
 Output up to INT top hits. Value -1 to disable outputting multiple
 hits. [-1]
@@ -184,7 +178,7 @@ hits. [-1]
 
 .TP
 .B sampe
-bwa sampe [-a maxInsSize] [-o maxOcc] <in.db.fasta> <in1.sai> <in2.sai>
+bwa sampe [-a maxInsSize] [-o maxOcc] [-P] <in.db.fasta> <in1.sai> <in2.sai>
 <in1.fq> <in2.fq> > <out.sam>
 
 Generate alignments in the SAM format given paired-end reads. Repetitive
@@ -194,7 +188,7 @@ read pairs will be placed randomly.
 .RS
 .TP 8
 .B -a INT
-Maximum insert size for a read pair to be considered as being mapped
+Maximum insert size for a read pair to be considered being mapped
 properly. Since 0.4.5, this option is only used when there are not
 enough good alignment to infer the distribution of insert sizes. [500]
 .TP
@@ -202,6 +196,61 @@ enough good alignment to infer the distribution of insert sizes. [500]
 Maximum occurrences of a read for pairing. A read with more occurrneces
 will be treated as a single-end read. Reducing this parameter helps
 faster pairing. [100000]
+.TP
+.B -P
+Load the entire FM-index into memory to reduce disk operations
+(base-space reads only). With this option, at least 1.25N bytes of
+memory are required, where N is the length of the genome.
+.RE
+
+.TP
+.B dbwtsw
+bwa dbwtsw [-a matchScore] [-b mmPen] [-q gapOpenPen] [-r gapExtPen] [-t
+nThreads] [-w bandWidth] [-T thres] [-s hspIntv] [-z zBest] [-N
+nHspRev] [-c thresCoef] <in.db.fasta> <in.fq>
+
+Align query sequences in the <in.fq> file.
+
+.B OPTIONS:
+.RS
+.TP 10
+.B -a INT
+Score of a match [1]
+.TP
+.B -b INT
+Mismatch penalty [3]
+.TP
+.B -q INT
+Gap open penalty [5]
+.TP
+.B -r INT
+Gap extension penalty. The penalty for a contiguous gap of size k is
+q+k*r. [2]
+.TP
+.B -t INT
+Number of threads in the multi-threading mode [1]
+.TP
+.B -w INT
+Band width in the banded alignment [33]
+.TP
+.B -T INT
+Minimum score threshold divided by a [37]
+.TP
+.B -c FLOAT
+Coefficient for threshold adjustment according to query length. Given an
+l-long query, the threshold for a hit to be retained is
+a*max{T,c*log(l)}. [5.5]
+.TP
+.B -z INT
+Z-best heuristics. Higher -z increases accuracy at the cost of speed. [1]
+.TP
+.B -s INT
+Maximum SA interval size for initiating a seed. Higher -s increases
+accuracy at the cost of speed. [3]
+.TP
+.B -N INT
+Minimum number of seeds supporting the resultant alignment to skip
+reverse alignment. [5]
 .RE
 
 .SH SAM ALIGNMENT FORMAT
@@ -237,42 +286,51 @@ Each bit in the FLAG field is defined as:
 
 .TS
 center box;
-cb | cb
-l | l .
-Flag	Description
+cb | cb | cb
+c | l | l .
+Chr	Flag	Description
 _
-0x0001	the read is paired in sequencing
-0x0002	the read is mapped in a proper pair
-0x0004	the query sequence itself is unmapped
-0x0008	the mate is unmapped
-0x0010	strand of the query (1 for reverse)
-0x0020	strand of the mate
-0x0040	the read is the first read in a pair
-0x0080	the read is the second read in a pair
-0x0100	the alignment is not primary
+p	0x0001	the read is paired in sequencing
+P	0x0002	the read is mapped in a proper pair
+u	0x0004	the query sequence itself is unmapped
+U	0x0008	the mate is unmapped
+r	0x0010	strand of the query (1 for reverse)
+R	0x0020	strand of the mate
+1	0x0040	the read is the first read in a pair
+2	0x0080	the read is the second read in a pair
+s	0x0100	the alignment is not primary
+f	0x0200	QC failure
+d	0x0400	optical or PCR duplicate
 .TE
 
 .PP
 The Please check <http://samtools.sourceforge.net> for the format
 specification and the tools for post-processing the alignment.
 
-BWA generates the following optional fields. Tag starting with `X' are
+BWA generates the following optional fields. Tags starting with `X' are
 specific to BWA.
 
 .TS
 center box;
 cb | cb
-lB | l .
+cB | l .
 Tag	Meaning
 _
 NM	Edit distance
 MD	Mismatching positions/bases
+AS	Alignment score
+_
 X0	Number of best hits
 X1	Number of suboptimal hits found by BWA
+XN	Number of ambiguous bases in the referenece
 XM	Number of mismatches in the alignment
 XO	Number of gap opens
 XG	Number of gap extentions
 XT	Type: Unique/Repeat/N/Mate-sw
+_
+XS	Suboptimal alignment score
+XF	Support from forward/reverse alignment
+XE	Number of supporting seeds
 .TE
 
 .PP
@@ -280,7 +338,7 @@ Note that XO and XG are generated by BWT search while the CIGAR string
 by Smith-Waterman alignment. These two tags may be inconsistent with the
 CIGAR string. This is not a bug.
 
-.SH NOTES
+.SH NOTES ON SHORT-READ ALIGNMENT
 .SS Alignment Accuracy
 .PP
 When seeding is disabled, BWA guarantees to find an alignment
@@ -307,10 +365,11 @@ unique hit as a repeat, if the random sequences happen to be identical
 to the sequences which should be unqiue in the database. This random
 behaviour will be avoided in future releases.
 .PP
-By default, if the best hit is unique, BWA also finds all hits contains
-one more mismatch; if the best hit is repetitive, BWA finds all equally
-best hits. Base quality is NOT considered in evaluating hits. In pairing,
-BWA searches, among the found hits under the constraint of the
+By default, if the best hit is no so repetitive (controlled by -R), BWA
+also finds all hits contains one more mismatch; otherwise, BWA finds all
+equally best hits only. Base quality is NOT considered in evaluating
+hits. In pairing, BWA searches, among the found hits under the
+constraint of the
 .I maxOcc
 option, for pairs within
 .I maxInsSize
@@ -355,172 +414,74 @@ size of database and therefore BWA is more efficient when the database
 is sufficiently large. On smaller genomes, hash based algorithms are
 usually much faster.
 
-.SS Evaluation on simulated data
-
-One million 32bp read pairs (two million reads) were generated by
-.B wgsim
-program that comes with the samtools package. Base error rate is
-uniformaly 2%. These reads are mapped with bowtie, bwa, maq and soap,
-respectively, under the default options except pairing distance. The
-resultant alignments were then evaluated with
-.B wgsim_eval.pl
-script. Alignments under 70bp and 125bp reads were also evaluated. The
-following table shows the programs being evaluated:
-
-.TS
-center box;
-cb | cb | cb | cb
-l | l | l | l .
-Program	Version	Algorithm	Features
-_
-bowtie	0.9.9.2	BWT backtracking	PE, [subOpt]
-bwa	0.4.3	BWT backtracking	PE, mapQ, gapSE/PE, [subOpt]
-maq	0.7.1	read hashing	PE, mapQ, qualAln, gapPE
-novo	2.0.13	genome hashing	PE, mapQ, qualAln, gapSE/PE, [subOpt]
-soap2	2.0.1	2way-BWT?	PE
-zoom	1.2.5	read hashing	PE, [qualAln, gapSE, subOpt]
-.TE
-
-.TS
-center box;
-cb | cb | cb s s s | cb s s s
-^ | ^ | cb | cb | cb | cb | cb | cb | cb | cb
-l | n | n | n | n | n | n | n | n | n .
-Program	Map(%)	Single-End	Paired-End
-_
-		T(sec)	M(GB)	U(%)	E(%)	Time	Mem	Uniq	Err
-_
-bowtie-32a	98.1	151	2.3	85.1	6.37	1341	3.0	89.2	2.85
-bowtie-32b	98.1	1271	2.3	79.0	0.76	1391	3.0	85.7	0.57
-bwa-32	99.6	860	2.3	80.6	0.30	1248	3.4	89.6	0.31
-.\" eland-32	90.3					5268	0.4	84.4	0.26
-maq-32	99.7	19797	1.2	81.0	0.14	21589	0.9	87.2	0.07
-novo-32	99.9	18296	6.2	82.0	0.97	26477	6.2	94.3	0.28
-soap2-32a	97.4	456	5.4	81.9	0.97	2018	5.4	90.1	0.35
-soap2-32b	94.8	256	5.4	78.6	1.16	1909	5.4	86.8	0.78
-zoom-32		3654	0.9	81.9	0.97	4110	1.0	91.4	0.71
-_
-bowtie-70a	96.5	397	2.3	91.5	4.04	1539	3.0	93.6	2.00
-bowtie-70b	96.3	1726	2.3	86.3	0.20	1580	3.0	90.7	0.43
-bwa-70	99.7	1609	2.3	90.7	0.12	1635	3.2	96.2	0.10
-maq-70	99.8	17928	1.2	91.0	0.13	19046	0.9	94.6	0.05
-novo-70	99.9	95869	9.0	94.4	0.27	65393	9.3	97.2	0.07
-soap2-70a	82.3	283	5.4	74.2	0.29	420	5.4	72.9	0.16
-soap2-70b	98.0	317	5.4	90.3	0.39	708	5.4	94.5	0.34
-zoom-70		3378	1.1	91.7	0.29	3261	1.2	94.9	0.20
-_
-bowtie-125a	95.7	1732	2.3	92.3	2.37	2304	3.0	94.1	1.62
-bowtie-125b	94.8	1966	2.3	88.0	0.07	1701	3.0	91.0	0.37
-bwa-125	99.7	3121	2.4	93.0	0.05	3160	3.3	97.6	0.04
-maq-125	99.7	17506	1.2	92.7	0.08	19388	0.9	96.3	0.02		
-soap2-125a	52.0	580	5.4	48.0	0.12	649	5.4	47.0	0.10
-soap2-125b	93.2	555	5.4	91.5	0.17	1187	5.4	90.8	0.14
-zoom-125		3805	1.3	93.6	0.10	3728	1.4	95.2	0.11
-_
-bwa-250	99.7	7110	2.7	92.2	0.02	7314	3.2	98.2	0.01
-.TE
-
+.SH NOTES ON LONG-READ ALIGNMENT
 .PP
-Discussions:
+Command
+.B `dbwtsw'
+is designed for long-read alignment. The algorithm behind, BWA-SW, is
+similar to BWT-SW, but does not guarantee to find all local hits due to
+the heuristic acceleration. It tends to be faster and more accurate if
+the resultant alignment is supported by more seeds, and therefore
+BWA-SW usually performs better on long queries than on short ones.
 
-.IP * 2
-SNPs and short indel variants are simulated, but this experiment does
-not consider the following scenarios: a) structural variations; b)
-inaccurate and non-uniform base quality; c) contaminated reads or
-incomplete reference; d) short indels around tandem repeats; e) short
-indel on sequencing reads. Performance on real data may differ a lot
-from this simulation.
+On 350-1000bp reads, BWA-SW is several to tens of times faster than the
+existing programs. Its accuracy is comparable to SSAHA2, more accurate
+than BLAT. Like BLAT, BWA-SW also finds chimera which may pose a
+challenge to SSAHA2. On 10-100kbp queries where chimera detection is
+important, BWA-SW is over 10X faster than BLAT while being more
+sensitive.
 
-.IP * 2
-Eland and maq were tested on machines with two Dual-core Xeon 5150 CPUs
-(2.66GHz, 4M cache) and 8GB RAM, while the rest on machines with two
-Quad-core Xeon E5420 CPUs (2.50GHz, 12M cache) and 16GB RAM.
-
-.IP * 2
-Percent mapped equals the number of mapped PE reads divided by the
-number of reads that do not contain ten contiguous `N' (wgsim may
-generate a purely `N' read). Percent unique equals the number of unique
-mappings divided by the number of non-N reads. Mapping quality 10 is
-used as a threshold for bwa to select unique mapping and 1 for
-maq. Soap2 gives the number of hits a read/pair has. Bowtie does not
-really gives the uniqueness of a read. The size of the first SA interval
-is used to select unique reads approximately. The alignment error rate
-is the fraction of wrong alignments out of unique alignments.
-
-.IP * 2
-Insert sizes in this experiment. 32bp: 170+/-25; 70bp: 500+/-50; 125bp:
-500+/-50; 250bp: 1000+/-100 (avg +/- std.dev.).
-
-.IP * 2
-For bwa, `-l 32 -n 4' is used for 70bp reads and `-l 32 -n 6' for 125bp
-reads; for bowtie, `-e 80' used for 70bp reads and `-e 120' for 125bp;
-for maq, `-e 120' is applied for both 70bp and 120bp reads.
-
-.IP * 2
-Bwa and maq are able to map almost all PE reads mainly because both of
-them do Smith-Waterman alignment for an unmapped read if its mate can be
-aligned confidently. For SE reads, a few percent cannot be mapped due to
-excessive mismatches or gaps.
-
-.IP * 2
-In this experiment, maq and bwa achieve similar accuracy in general. Maq
-is more conservative on mapping quality in that maq claims fewer unique
-reads but the reads claimed as unique by maq are more accurate. On
-speed, bwa is much faster but bwa's speed depends on read length and
-error rate (data not shown) while maq does not for reads shorter than
-128bp.
-
-.IP * 2
-Both soap2 and bowtie are much faster than bwa. On accuracy, soap2
-competes with bwa/maq on 32bp reads but its performance is degraded for
-longer reads as it allows no more than 2 mismatches on a read. Its
-latest version 2.1.0 allows more mismatches beyond the seed sequence but
-I failed to get a sensible result from 2.1.0. In addition, soap2's
-iteratively trimming from the 3'-end is not tested as error rate is
-uniform in simulation. Bowtie has higher alignment error rate because
-under the default option it does not guarantee to find the best hits nor
-tells whether the found hit is a repeat or not. However, it is possible
-to make bowtie find the best unique hits at the cost of speed. For
-example, given the 70bp reads, `bowtie -e 80 --best -k 2' uniquely maps
-86.7% reads with 0.54% of them wrong; `bowtie -e 80 --best -k 2
---nostrata' uniquely maps 85.0% reads with 0.15% wrong. The first
-command line is faster than bwa but the second slower. In addition,
-lower alignment accuracy does not necessarily lead to lower SNP accuracy
-if alignment can be processed with particular care.
+BWA-SW can also be used to align ~100bp reads, but it is slower than
+the short-read algorithm. Its sensitivity and accuracy is lower than
+SSAHA2 especially when the sequencing error rate is above 2%. This is
+the trade-off of the 30X speed up in comparison to SSAHA2's -454 mode.
 
 .SH SEE ALSO
-samtools <http://samtools.sourceforge.net>, maq
-<http://maq.sourceforge.net>, bowtie
-<http://bowtie-bio.sourceforge.net>, soap2
-<http://soap.genomics.org.cn/index.html>.
+BWA website <http://bio-bwa.sourceforge.net>, Samtools website
+<http://samtools.sourceforge.net>
 
 .SH AUTHOR
 Heng Li at the Sanger Institute wrote the key source codes and
 integrated the following codes for BWT construction: bwtsw
 <http://i.cs.hku.hk/~ckwong3/bwtsw/>, implemented by Chi-Kwong Wong at
-the University of Hong Kong, IS <http://yuta.256.googlepages.com/sais>
-originally invented by Nong Ge <http://www.cs.sysu.edu.cn/nong/> at the
-Sun Yat-Sen University, and libdivsufsort
-<http://code.google.com/p/libdivsufsort/> by Yuta Mori.
+the University of Hong Kong and IS
+<http://yuta.256.googlepages.com/sais> originally proposed by Nong Ge
+<http://www.cs.sysu.edu.cn/nong/> at the Sun Yat-Sen University and
+implemented by Yuta Mori.
 
-.SH LICENSE
+.SH LICENSE AND CITATION
+.PP
 The full BWA package is distributed under GPLv3 as it uses source codes
 from BWT-SW which is covered by GPL. Sorting, hash table, BWT and IS
 libraries are distributed under the MIT license.
+.PP
+If you use the short-read alignment component, please cite the following
+paper:
+.PP
+Li H. and Durbin R. (2009) Fast and accurate short read alignment with
+Burrows-Wheeler transform. Bioinformatics, 25, 1754-60.
 
 .SH HISTORY
-BWA is largely influenced by BWT-SW. It uses codes from BWT-SW and
-mimics the binary file formats of BWT-SW. At the same time, BWA is also
-different from BWT-SW. BWA uses quite a different algorithm to search
-for alignments and is much faster. While BWT-SW aims at a tool of
-gerneral purpose, BWA is more tuned towards short read alignment.
+BWA is largely influenced by BWT-SW. It uses source codes from BWT-SW
+and mimics its binary file formats; BWA-SW resembles BWT-SW in several
+ways. The initial idea about BWT-based alignment also came from the
+group who developed BWT-SW. At the same time, BWA is different enough
+from BWT-SW. The short-read alignment algorithm bears no similarity to
+Smith-Waterman algorithm any more. While BWA-SW learns from BWT-SW, it
+introduces heuristics that can hardly be applied to the original
+algorithm. In all, BWA does not guarantee to find all local hits as what
+BWT-SW is designed to do, but it is much faster than BWT-SW on both
+short and long query sequences.
 
 I started to write the first piece of codes on 24 May 2008 and got the
 initial stable version on 02 June 2008. During this period, I was
 acquainted that Professor Tak-Wah Lam, the first author of BWT-SW paper,
-is collaborating with Beijing Genomics Institute on SOAP2, the successor
+was collaborating with Beijing Genomics Institute on SOAP2, the successor
 to SOAP (Short Oligonucleotide Analysis Package). SOAP2 has come out in
-November 2008.
+November 2008. According to the SourceForge download page, the third
+BWT-based short read aligner, bowtie, was first released in August
+2008. At the time of writing this manual, at least three more BWT-based
+short-read aligners are being implemented.
 
-According to the SourceForge project statistics, the third BWT-based
-short read aligner, bowtie, was first released on August, 2008.
+The BWA-SW algorithm is a new component of BWA. It was conceived in
+November 2008 and implemented ten months later.
